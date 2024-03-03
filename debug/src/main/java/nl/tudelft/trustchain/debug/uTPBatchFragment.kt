@@ -1,24 +1,38 @@
 package nl.tudelft.trustchain.debug
 
 import android.os.Bundle
+import android.text.InputType
 import android.util.Log
 import android.view.View
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
+import android.widget.AutoCompleteTextView
+import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import net.utp4j.channels.UtpServerSocketChannel
+import net.utp4j.channels.UtpSocketChannel
 import nl.tudelft.ipv8.IPv4Address
 import nl.tudelft.trustchain.common.ui.BaseFragment
 import nl.tudelft.trustchain.common.util.viewBinding
 import nl.tudelft.trustchain.debug.databinding.FragmentUtpbatchBinding
+import java.net.InetAddress
+import java.net.InetSocketAddress
+import java.nio.ByteBuffer
 import java.text.SimpleDateFormat
+import java.util.Arrays
 import java.util.Date
+
 
 class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
     private val binding by viewBinding(FragmentUtpbatchBinding::bind)
 
     private var sent = 0
     private var received = 0
+
+
 
     private val receivedMap = mutableMapOf<String, Int>()
     private val firstMessageTimestamps = mutableMapOf<String, Date>()
@@ -29,6 +43,24 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         savedInstanceState: Bundle?
     ) {
         super.onViewCreated(view, savedInstanceState)
+
+        var items = listOf("adff", "ffff", "ffff", "ffff", "ffff")
+        var autoComplete: AutoCompleteTextView = view.findViewById(R.id.auto_complete_txt)
+        var adapter = ArrayAdapter(view.context, R.layout.peer_item, items)
+
+        autoComplete.setAdapter(adapter)
+        autoComplete.onItemClickListener = AdapterView.OnItemClickListener {
+                adapterView, view, i, l ->
+
+
+            val itemSelected = adapterView.getItemAtPosition(i)
+            Log.i("HELLO", itemSelected.toString())
+
+            Toast.makeText(view.context, "Item: $itemSelected", Toast.LENGTH_SHORT).show()
+        }
+
+
+
 
         lifecycleScope.launchWhenCreated {
             while (isActive) {
@@ -50,23 +82,75 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
             }
         }
 
-        binding.btnPuncture.setOnClickListener {
-            val address = binding.edtAddress.text.toString().split(":")
-            if (address.size == 2) {
-                val ip = address[0]
-                val port = address[1].toIntOrNull() ?: MIN_PORT
+        binding.btnSend.setOnClickListener {
+//            val address = binding.edtAddress.text.toString().split(":")
+//            if (address.size == 2) {
+//                val ip = address[0]
+//                val port = address[1].toIntOrNull() ?: MIN_PORT
+//
+//                lifecycleScope.launchWhenCreated {
+//                    firstSentMessageTimestamp = Date()
+//                    if (binding.sweep.isChecked) {
+//                        punctureAll(ip, false)
+//                        delay(30000)
+//                        punctureAll(ip, true)
+//                    } else {
+//                        punctureSingle(ip, port)
+//                    }
+//                }
+//            }
+//
+//            try {
+//                // stub data to send
+//                val bulk = ByteArray(10 * 1024)
+//                Arrays.fill(bulk, 0xAF.toByte())
+//                // 1752 bytes per packets
+//
+//                val local = InetSocketAddress(InetAddress.getByName("145.94.188.69"), 12350)
+//
+//                // The Server.
+//                try {
+//                    val server = UtpServerSocketChannel.open()
+//                    server.bind(local)
+//                    val acceptFuture = server.accept()
+//                    acceptFuture.block()
+//                    val channel = acceptFuture.channel
+//                    val out = ByteBuffer.allocate(bulk.size)
+//                    out.put(bulk)
+//                    // Send data
+//                    val fut = channel.write(out)
+//                    fut.block()
+//                    channel.close()
+//                    server.close()
+//                } catch (e: java.lang.Exception) {
+//                    e.printStackTrace(System.err)
+//                }
+//            } catch (e: java.lang.Exception) {
+//                e.printStackTrace(System.err)
+//            }
+        }
 
-                lifecycleScope.launchWhenCreated {
-                    firstSentMessageTimestamp = Date()
-                    if (binding.sweep.isChecked) {
-                        punctureAll(ip, false)
-                        delay(30000)
-                        punctureAll(ip, true)
-                    } else {
-                        punctureSingle(ip, port)
-                    }
-                }
-            }
+        binding.btnReceive.setOnClickListener {
+//            val address = binding.edtAddress.text.toString().split(":")
+//
+//            try {
+//                // stub data to send
+//                val bulk = ByteArray(10 * 1024)
+//                Arrays.fill(bulk, 0xAF.toByte())
+//
+//                val local = InetSocketAddress(InetAddress.getLocalHost(), 12350)
+//
+//                // The Client.
+//                val channel = UtpSocketChannel.open()
+//                val cFut = channel.connect(local)
+//                cFut.block()
+//                val buffer = ByteBuffer.allocate(bulk.size)
+//                val readFuture = channel.read(buffer)
+//                readFuture.block()
+//                channel.close()
+//            } catch (e: Exception) {
+//                e.printStackTrace(System.err)
+//            }
         }
     }
 
@@ -118,13 +202,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
 
     private fun updateView() {
         val df = SimpleDateFormat.getTimeInstance(SimpleDateFormat.MEDIUM)
-        binding.txtResult.text =
-            "Sent: $sent\nFirst Sent: $firstSentMessageTimestamp\nReceived: $received\n\n" +
-            receivedMap.map {
-                val date = firstMessageTimestamps[it.key]
-                val time = if (date != null) df.format(date) else null
-                it.key + " (" + time + ") -> " + it.value
-            }.joinToString("\n")
+        binding.txtResult.text = getDemoCommunity().getPeers().toString()
     }
 
     companion object {
