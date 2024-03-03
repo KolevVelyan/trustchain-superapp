@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import nl.tudelft.ipv8.IPv4Address
+import nl.tudelft.trustchain.common.DemoCommunity
 import nl.tudelft.trustchain.common.ui.BaseFragment
 import nl.tudelft.trustchain.common.util.viewBinding
 import nl.tudelft.trustchain.debug.databinding.FragmentPunctureBinding
@@ -68,6 +69,18 @@ class PunctureFragment : BaseFragment(R.layout.fragment_puncture) {
                 }
             }
         }
+
+        binding.btnTestPuncture.setOnClickListener {
+            val address = binding.edtAddress.text.toString().split(":")
+            if (address.size == 2) {
+                val ip = address[0]
+                val port = address[1].toIntOrNull() ?: 8090
+
+                lifecycleScope.launchWhenCreated {
+                    openPort(ip, port)
+                }
+            }
+        }
     }
 
     /*
@@ -114,6 +127,14 @@ class PunctureFragment : BaseFragment(R.layout.fragment_puncture) {
 
             delay(1000)
         }
+    }
+
+    private suspend fun openPort(
+        ip: String,
+        port: Int
+    ) {
+        val ipv4 = IPv4Address(ip, port)
+        getDemoCommunity().openPort(ipv4, port)
     }
 
     private fun updateView() {

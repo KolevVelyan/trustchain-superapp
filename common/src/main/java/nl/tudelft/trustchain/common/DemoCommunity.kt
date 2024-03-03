@@ -46,6 +46,7 @@ class DemoCommunity : Community() {
 
     object MessageId {
         const val PUNCTURE_TEST = 251
+        const val OPEN_PORT = 252
     }
 
     fun sendPuncture(
@@ -57,13 +58,28 @@ class DemoCommunity : Community() {
         endpoint.send(address, packet)
     }
 
+    fun openPort(
+        address: IPv4Address,
+        id: Int
+    ) {
+        val payload = PuncturePayload(myEstimatedLan, myEstimatedWan, id)
+        val packet = serializePacket(MessageId.OPEN_PORT, payload, sign = false)
+        endpoint.send(address, packet)
+    }
+
     // RECEIVE MESSAGE
     init {
         messageHandlers[MessageId.PUNCTURE_TEST] = ::onPunctureTest
+        messageHandlers[MessageId.OPEN_PORT] = ::onOpenPort
     }
 
     private fun onPunctureTest(packet: Packet) {
         val payload = packet.getPayload(PuncturePayload.Deserializer)
         punctureChannel.tryEmit(Pair(packet.source, payload))
+    }
+
+    private fun onOpenPort(packet: Packet) {
+        val payload = packet.getPayload(PuncturePayload.Deserializer)
+    System.out.print(payload.toString())
     }
 }
