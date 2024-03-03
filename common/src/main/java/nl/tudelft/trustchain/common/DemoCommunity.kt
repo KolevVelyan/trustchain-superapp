@@ -6,12 +6,14 @@ import nl.tudelft.ipv8.IPv4Address
 import nl.tudelft.ipv8.Peer
 import nl.tudelft.ipv8.android.IPv8Android
 import nl.tudelft.ipv8.attestation.trustchain.TrustChainCommunity
+import nl.tudelft.ipv8.logger
 import nl.tudelft.ipv8.messaging.Address
 import nl.tudelft.ipv8.messaging.Packet
 import nl.tudelft.ipv8.messaging.payload.IntroductionRequestPayload
 import nl.tudelft.ipv8.messaging.payload.IntroductionResponsePayload
 import nl.tudelft.ipv8.messaging.payload.PuncturePayload
 import nl.tudelft.ipv8.messaging.payload.PunctureRequestPayload
+import nl.tudelft.ipv8.messaging.udp.UdpEndpoint
 import java.util.Date
 
 class DemoCommunity : Community() {
@@ -92,9 +94,14 @@ class DemoCommunity : Community() {
                 payload.wanWalkerAddress
             }
 
-            val packet_ = createPuncture(myEstimatedLan, myEstimatedWan, payload.identifier)
+            val packet_ = createPortOpenResponse(myEstimatedLan, myEstimatedWan, payload.identifier)
             endpoint.fileEndpoint?.send(target, packet_)
         }
+    }
+
+    private fun createPortOpenResponse(lanWalker: IPv4Address, wanWalker: IPv4Address, identifier: Int): ByteArray {
+        val payload = PuncturePayload(lanWalker, wanWalker, identifier)
+        return serializePacket(MessageId.OPEN_PORT_RESPONSE, payload)
     }
 
     private fun onOpenPortResponse(packet: Packet) {
