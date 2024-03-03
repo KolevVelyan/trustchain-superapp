@@ -76,7 +76,7 @@ class PunctureFragment : BaseFragment(R.layout.fragment_puncture) {
                 val port = address[1].toIntOrNull() ?: 8090
 
                 lifecycleScope.launchWhenCreated {
-                    openPort(ip, port)
+                    openPort(ip, port, 0)
                 }
             }
         }
@@ -130,7 +130,8 @@ class PunctureFragment : BaseFragment(R.layout.fragment_puncture) {
 
     private suspend fun openPort(
         ip: String,
-        port: Int
+        port: Int,
+        portToOpen: Int
     ) {
         val ipv4 = IPv4Address(ip, port)
         getDemoCommunity().openPort(ipv4, 8092)
