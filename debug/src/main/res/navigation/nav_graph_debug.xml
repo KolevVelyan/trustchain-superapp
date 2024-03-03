@@ -21,7 +21,11 @@
         android:name="nl.tudelft.trustchain.debug.WanLogFragment"
         android:label="WAN Log" />
     <fragment
-        android:id="@+id/punctureFragment"
-        android:name="nl.tudelft.trustchain.debug.PunctureFragment"
-        android:label="NAT Puncturing" />
+    android:id="@+id/punctureFragment"
+    android:name="nl.tudelft.trustchain.debug.PunctureFragment"
+    android:label="NAT Puncturing" />
+    <fragment
+        android:id="@+id/uTPBatchFragment"
+        android:name="nl.tudelft.trustchain.debug.uTPBatchFragment"
+        android:label="uTP Batch Send" />
 </navigation>
