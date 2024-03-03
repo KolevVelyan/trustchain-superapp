@@ -8,11 +8,11 @@ import nl.tudelft.ipv8.android.IPv8Android
 import nl.tudelft.ipv8.attestation.trustchain.TrustChainCommunity
 import nl.tudelft.ipv8.messaging.Address
 import nl.tudelft.ipv8.messaging.Packet
-import nl.tudelft.ipv8.messaging.payload.IntroductionRequestPayload
 import nl.tudelft.ipv8.messaging.payload.IntroductionResponsePayload
 import nl.tudelft.ipv8.messaging.payload.PuncturePayload
-import nl.tudelft.ipv8.messaging.payload.PunctureRequestPayload
 import nl.tudelft.ipv8.messaging.udp.UdpEndpoint
+import nl.tudelft.trustchain.common.messaging.OpenPortPayload
+import java.net.InetAddress
 import java.util.Date
 
 class DemoCommunity : Community() {
@@ -64,11 +64,11 @@ class DemoCommunity : Community() {
 
     fun openPort(
         address: IPv4Address,
-        id: Int
+        portToOpen: Int
     ) {
-        val payload = PuncturePayload(myEstimatedLan, myEstimatedWan, id)
+        val payload = OpenPortPayload(portToOpen)
         val packet = serializePacket(MessageId.OPEN_PORT, payload, sign = false)
-        endpoint.fileEndpoint?.send(address, packet)
+        endpoint.send(address, packet)
     }
 
     // RECEIVE MESSAGE
@@ -84,26 +84,17 @@ class DemoCommunity : Community() {
     }
 
     private fun onOpenPort(packet: Packet) {
-        val payload = packet.getPayload(PunctureRequestPayload.Deserializer)
+        val payload = packet.getPayload(OpenPortPayload.Deserializer)
         if (packet.source is IPv4Address) {
-            val target = if (payload.wanWalkerAddress.ip == myEstimatedWan.ip) {
-                // They are on the same LAN, puncture should not be needed, but send it just in case
-                payload.lanWalkerAddress
-            } else {
-                payload.wanWalkerAddress
-            }
+            val s =  UdpEndpoint(payload.port, InetAddress.getByName("0.0.0.0"))
+            s.open()
 
-            val packet_ = createPortOpenResponse(myEstimatedLan, myEstimatedWan, payload.identifier)
-            endpoint.fileEndpoint?.send(target, packet_)
+            s.send(packet.source as IPv4Address, serializePacket(MessageId.OPEN_PORT_RESPONSE, payload))
         }
     }
 
-    private fun createPortOpenResponse(lanWalker: IPv4Address, wanWalker: IPv4Address, identifier: Int): ByteArray {
-        val payload = PuncturePayload(lanWalker, wanWalker, identifier)
-        return serializePacket(MessageId.OPEN_PORT_RESPONSE, payload)
-    }
-
     private fun onOpenPortResponse(packet: Packet) {
+
         System.out.print("Helloooo" + packet.toString());
     }
 }

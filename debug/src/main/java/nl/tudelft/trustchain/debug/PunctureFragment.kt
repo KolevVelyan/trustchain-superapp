@@ -8,7 +8,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import nl.tudelft.ipv8.IPv4Address
-import nl.tudelft.trustchain.common.DemoCommunity
 import nl.tudelft.trustchain.common.ui.BaseFragment
 import nl.tudelft.trustchain.common.util.viewBinding
 import nl.tudelft.trustchain.debug.databinding.FragmentPunctureBinding
@@ -134,7 +133,7 @@ class PunctureFragment : BaseFragment(R.layout.fragment_puncture) {
         port: Int
     ) {
         val ipv4 = IPv4Address(ip, port)
-        getDemoCommunity().openPort(ipv4, port)
+        getDemoCommunity().openPort(ipv4, 8092)
     }
 
     private fun updateView() {
