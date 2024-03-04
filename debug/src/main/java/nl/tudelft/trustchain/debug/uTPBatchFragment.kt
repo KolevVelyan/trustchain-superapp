@@ -1,5 +1,6 @@
 package nl.tudelft.trustchain.debug
 
+import android.content.Context
 import android.os.Bundle
 import android.text.InputType
 import android.util.Log
@@ -15,6 +16,7 @@ import kotlinx.coroutines.isActive
 import net.utp4j.channels.UtpServerSocketChannel
 import net.utp4j.channels.UtpSocketChannel
 import nl.tudelft.ipv8.IPv4Address
+import nl.tudelft.ipv8.Peer
 import nl.tudelft.trustchain.common.ui.BaseFragment
 import nl.tudelft.trustchain.common.util.viewBinding
 import nl.tudelft.trustchain.debug.databinding.FragmentUtpbatchBinding
@@ -32,6 +34,8 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
     private var sent = 0
     private var received = 0
 
+    private var availablePeers = HashMap<IPv4Address, Peer>()
+    private var chosenPeer: Peer? = null
 
 
     private val receivedMap = mutableMapOf<String, Int>()
@@ -44,20 +48,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
     ) {
         super.onViewCreated(view, savedInstanceState)
 
-        var items = listOf("adff", "ffff", "ffff", "ffff", "ffff")
-        var autoComplete: AutoCompleteTextView = view.findViewById(R.id.auto_complete_txt)
-        var adapter = ArrayAdapter(view.context, R.layout.peer_item, items)
-
-        autoComplete.setAdapter(adapter)
-        autoComplete.onItemClickListener = AdapterView.OnItemClickListener {
-                adapterView, view, i, l ->
-
-
-            val itemSelected = adapterView.getItemAtPosition(i)
-            Log.i("HELLO", itemSelected.toString())
-
-            Toast.makeText(view.context, "Item: $itemSelected", Toast.LENGTH_SHORT).show()
-        }
+        updateAvailablePeers()
 
 
 
@@ -83,126 +74,139 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         }
 
         binding.btnSend.setOnClickListener {
-//            val address = binding.edtAddress.text.toString().split(":")
-//            if (address.size == 2) {
-//                val ip = address[0]
-//                val port = address[1].toIntOrNull() ?: MIN_PORT
-//
-//                lifecycleScope.launchWhenCreated {
-//                    firstSentMessageTimestamp = Date()
-//                    if (binding.sweep.isChecked) {
-//                        punctureAll(ip, false)
-//                        delay(30000)
-//                        punctureAll(ip, true)
-//                    } else {
-//                        punctureSingle(ip, port)
-//                    }
-//                }
-//            }
-//
-//            try {
-//                // stub data to send
-//                val bulk = ByteArray(10 * 1024)
-//                Arrays.fill(bulk, 0xAF.toByte())
-//                // 1752 bytes per packets
-//
-//                val local = InetSocketAddress(InetAddress.getByName("145.94.188.69"), 12350)
-//
-//                // The Server.
-//                try {
-//                    val server = UtpServerSocketChannel.open()
-//                    server.bind(local)
-//                    val acceptFuture = server.accept()
-//                    acceptFuture.block()
-//                    val channel = acceptFuture.channel
-//                    val out = ByteBuffer.allocate(bulk.size)
-//                    out.put(bulk)
-//                    // Send data
-//                    val fut = channel.write(out)
-//                    fut.block()
-//                    channel.close()
-//                    server.close()
-//                } catch (e: java.lang.Exception) {
-//                    e.printStackTrace(System.err)
-//                }
-//            } catch (e: java.lang.Exception) {
-//                e.printStackTrace(System.err)
-//            }
+            if (sendReceiveValidateInput()) {
+                val transferAmount: Int = getDataSize() * 1024 * 1024
+                val puncturedPort: Int = 12345 // todo
+
+                try {
+                    // data to send
+                    val bulk = ByteArray(transferAmount)
+                    Arrays.fill(bulk, 0xAF.toByte()) // currently data is just the byte 0xAF over and over
+
+                    // socket is defined by the sender's ip and chosen port
+                    val socket = InetSocketAddress(InetAddress.getByName(getDemoCommunity().myEstimatedWan.ip), puncturedPort)
+
+                    // instantiate server to send data (it waits for client to through socket first)
+                    try {
+                        // socket is defined by the sender's ip and chosen port
+                        val server = UtpServerSocketChannel.open()
+                        server.bind(socket)
+
+                        // wait until someone connects to server and get new channel
+                        val acceptFuture = server.accept()
+                        acceptFuture.block()
+                        val channel = acceptFuture.channel
+
+                        // send data on newly established channel (with client/receiver)
+                        val out = ByteBuffer.allocate(bulk.size)
+                        out.put(bulk)
+                        val fut = channel.write(out)
+                        fut.block() // block until all data is sent
+
+
+                        channel.close()
+                        server.close()
+                    } catch (e: java.lang.Exception) {
+                        e.printStackTrace(System.err)
+                    }
+                } catch (e: java.lang.Exception) {
+                    e.printStackTrace(System.err)
+                }
+            }
         }
 
         binding.btnReceive.setOnClickListener {
-//            val address = binding.edtAddress.text.toString().split(":")
-//
-//            try {
-//                // stub data to send
-//                val bulk = ByteArray(10 * 1024)
-//                Arrays.fill(bulk, 0xAF.toByte())
-//
-//                val local = InetSocketAddress(InetAddress.getLocalHost(), 12350)
-//
-//                // The Client.
-//                val channel = UtpSocketChannel.open()
-//                val cFut = channel.connect(local)
-//                cFut.block()
-//                val buffer = ByteBuffer.allocate(bulk.size)
-//                val readFuture = channel.read(buffer)
-//                readFuture.block()
-//                channel.close()
-//            } catch (e: Exception) {
-//                e.printStackTrace(System.err)
-//            }
-        }
-    }
+            if (sendReceiveValidateInput()) {
+                val transferAmount: Int = getDataSize() * 1024 * 1024
+                val puncturedPort: Int = 12345 // todo
 
-    /*
-    private suspend fun punctureMultiple(ip: String, port: Int) {
-        Log.d("PunctureFragment", "Puncture multiple with initial port: $ip $port")
-        val minPort = max(port - SEARCH_BREADTH/2, MIN_PORT)
-        val maxPort = min(port + SEARCH_BREADTH/2, MAX_PORT)
-        for (i in  minPort .. maxPort) {
-            val ipv4 = IPv4Address(ip, i)
-            getDemoCommunity().sendPuncture(ipv4, i)
-            sent++
-            updateView()
+                try {
+                    // data to send
+                    val bulk = ByteArray(transferAmount)
+                    Arrays.fill(bulk, 0xAF.toByte()) // currently data is just the byte 0xAF over and over
 
-            if (i % 10 == 0) {
-                delay(40)
-            }
-        }
-    }
-     */
+                    // socket is defined by the sender's ip and chosen port
+                    val socket = InetSocketAddress(InetAddress.getByName(getChosenPeer().wanAddress.ip), puncturedPort)
 
-    private suspend fun punctureAll(
-        ip: String,
-        slow: Boolean
-    ) = with(Dispatchers.Default) {
-        for (i in MIN_PORT..MAX_PORT) {
-            val ipv4 = IPv4Address(ip, i)
-            getDemoCommunity().sendPuncture(ipv4, i)
-            sent++
+                    // instantiate client to receive data
+                    val channel = UtpSocketChannel.open()
+                    val cFut = channel.connect(socket) // connect to server/sender
+                    cFut.block() // block until connection is established
 
-            if (i % 1000 == 0) {
-                delay(if (slow) 30000L else 1L)
+                    // Allocate space in buffer and start receiving
+                    val buffer = ByteBuffer.allocate(bulk.size)
+                    val readFuture = channel.read(buffer)
+                    readFuture.block() // block until all data is received
+
+                    channel.close()
+                } catch (e: Exception) {
+                    e.printStackTrace(System.err)
+                }
             }
         }
     }
 
-    private suspend fun punctureSingle(
-        ip: String,
-        port: Int
-    ) {
-        while (true) {
-            val ipv4 = IPv4Address(ip, port)
-            getDemoCommunity().sendPuncture(ipv4, port)
-            sent++
+    private fun sendReceiveValidateInput(): Boolean {
+        val context: Context = requireContext()
 
-            delay(1000)
+        if (chosenPeer == null) {
+            Toast.makeText(context, "Invalid peer", Toast.LENGTH_SHORT).show()
+            return false
+        }
+
+        if (binding.dataSize.text.toString().isEmpty()) {
+            Toast.makeText(context, "Invalid data size", Toast.LENGTH_SHORT).show()
+            return false
+        }
+
+        return true
+    }
+
+    private fun getDataSize(): Int {
+        val dataSizeText = binding.dataSize.text.toString()
+
+        // should not occur if validated beforehand
+        if (dataSizeText.isEmpty()) throw IllegalArgumentException("invalid data size")
+
+        return dataSizeText.toInt()
+    }
+
+    private fun getChosenPeer(): Peer {
+        // should not occur if validated beforehand
+        if (chosenPeer == null) throw IllegalArgumentException("invalid peer")
+
+        return chosenPeer as Peer
+    }
+
+    private fun updateAvailablePeers()  {
+        // get current peers
+        val currPeers: List<Peer> = getDemoCommunity().getPeers()
+        val newPeersMap = HashMap<IPv4Address, Peer>()
+        for (peer in currPeers) {
+            newPeersMap[peer.wanAddress] = peer
+        }
+
+        if (newPeersMap != availablePeers) {
+            // peers have changed need to update
+            availablePeers = newPeersMap
+            val autoComplete: AutoCompleteTextView = binding.autoCompleteTxt
+            val context: Context = requireContext()
+            val adapter = ArrayAdapter(context, R.layout.peer_item, availablePeers.keys.toList())
+
+            autoComplete.setAdapter(adapter)
+            autoComplete.onItemClickListener = AdapterView.OnItemClickListener {
+                    adapterView, view, i, l ->
+
+                val itemSelected = adapterView.getItemAtPosition(i)
+                chosenPeer = availablePeers[itemSelected]
+            }
         }
     }
+
 
     private fun updateView() {
-        val df = SimpleDateFormat.getTimeInstance(SimpleDateFormat.MEDIUM)
-        binding.txtResult.text = getDemoCommunity().getPeers().toString()
+        updateAvailablePeers()
+        binding.txtResult.text = "Available Peers: ${availablePeers.keys} \nData Size: ${binding.dataSize.text} \nChosen Peer: $chosenPeer"
     }
 
     companion object {
