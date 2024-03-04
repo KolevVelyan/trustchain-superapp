@@ -2,7 +2,6 @@ package nl.tudelft.trustchain.debug
 
 import android.content.Context
 import android.os.Bundle
-import android.text.InputType
 import android.util.Log
 import android.view.View
 import android.widget.AdapterView
@@ -10,22 +9,24 @@ import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import net.utp4j.channels.UtpServerSocketChannel
 import net.utp4j.channels.UtpSocketChannel
+import net.utp4j.channels.impl.UtpSocketChannelImpl
 import nl.tudelft.ipv8.IPv4Address
 import nl.tudelft.ipv8.Peer
 import nl.tudelft.trustchain.common.ui.BaseFragment
 import nl.tudelft.trustchain.common.util.viewBinding
 import nl.tudelft.trustchain.debug.databinding.FragmentUtpbatchBinding
+import java.io.IOException
+import java.net.DatagramSocket
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
-import java.text.SimpleDateFormat
 import java.util.Arrays
 import java.util.Date
+import net.utp4j.channels.UtpSocketState.CLOSED
 
 
 class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
@@ -76,7 +77,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         binding.btnSend.setOnClickListener {
             if (sendReceiveValidateInput()) {
                 val transferAmount: Int = getDataSize() * 1024 * 1024
-                val puncturedPort: Int = 12345 // todo
+                val senderPort: Int = getDemoCommunity().myEstimatedWan.port;
 
                 try {
                     // data to send
@@ -84,7 +85,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
                     Arrays.fill(bulk, 0xAF.toByte()) // currently data is just the byte 0xAF over and over
 
                     // socket is defined by the sender's ip and chosen port
-                    val socket = InetSocketAddress(InetAddress.getByName(getDemoCommunity().myEstimatedWan.ip), puncturedPort)
+                    val socket = InetSocketAddress(InetAddress.getByName(getDemoCommunity().myEstimatedWan.ip), senderPort)
 
                     // instantiate server to send data (it waits for client to through socket first)
                     try {
@@ -116,9 +117,10 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         }
 
         binding.btnReceive.setOnClickListener {
-            if (sendReceiveValidateInput()) {
+           if (sendReceiveValidateInput()) {
                 val transferAmount: Int = getDataSize() * 1024 * 1024
-                val puncturedPort: Int = 12345 // todo
+                val senderPort: Int = getChosenPeer().wanAddress.port
+                val receiverPort: Int = getDemoCommunity().myEstimatedWan.port
 
                 try {
                     // data to send
@@ -126,10 +128,18 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
                     Arrays.fill(bulk, 0xAF.toByte()) // currently data is just the byte 0xAF over and over
 
                     // socket is defined by the sender's ip and chosen port
-                    val socket = InetSocketAddress(InetAddress.getByName(getChosenPeer().wanAddress.ip), puncturedPort)
+                    val socket = InetSocketAddress(InetAddress.getByName(getChosenPeer().wanAddress.ip), senderPort)
 
                     // instantiate client to receive data
-                    val channel = UtpSocketChannel.open()
+                    val c = UtpSocketChannelImpl()
+                    try {
+                        c.dgSocket = DatagramSocket(receiverPort)
+                        c.state = CLOSED
+                    } catch (exp: IOException) {
+                        throw IOException("Could not open UtpSocketChannel: ${exp.message}")
+                    }
+                    val channel: UtpSocketChannel = c
+
                     val cFut = channel.connect(socket) // connect to server/sender
                     cFut.block() // block until connection is established
 
