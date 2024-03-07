@@ -43,4 +43,12 @@
         android:layout_height="wrap_content"
         android:text="Expose mUTP port" />
 
+    <EditText
+        android:id="@+id/portToOpen"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:importantForAutofill="no"
+        android:inputType="number"
+        />
+
 </LinearLayout>
