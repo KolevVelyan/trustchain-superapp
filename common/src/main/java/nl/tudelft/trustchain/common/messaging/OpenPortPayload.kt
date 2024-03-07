@@ -18,7 +18,7 @@ class OpenPortPayload(val port: Int): Serializable {
         ): Pair<OpenPortPayload, Int> {
             var localOffset = offset
 
-            val port = deserializeUShort(buffer, offset + localOffset)
+            val port = deserializeUShort(buffer, localOffset)
             localOffset += SERIALIZED_USHORT_SIZE
 
             return Pair(OpenPortPayload(port), localOffset)
