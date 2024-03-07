@@ -2,6 +2,8 @@ package nl.tudelft.trustchain.debug
 
 import android.content.Context
 import android.os.Bundle
+import android.os.StrictMode
+import android.os.StrictMode.ThreadPolicy
 import android.util.Log
 import android.view.View
 import android.widget.AdapterView
@@ -13,6 +15,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import net.utp4j.channels.UtpServerSocketChannel
 import net.utp4j.channels.UtpSocketChannel
+import net.utp4j.channels.UtpSocketState.CLOSED
 import net.utp4j.channels.impl.UtpSocketChannelImpl
 import nl.tudelft.ipv8.IPv4Address
 import nl.tudelft.ipv8.Peer
@@ -26,7 +29,6 @@ import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.util.Arrays
 import java.util.Date
-import net.utp4j.channels.UtpSocketState.CLOSED
 
 
 class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
@@ -51,8 +53,8 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
 
         updateAvailablePeers()
 
-
-
+        val policy = ThreadPolicy.Builder().permitAll().build()
+        StrictMode.setThreadPolicy(policy)
 
         lifecycleScope.launchWhenCreated {
             while (isActive) {
@@ -77,7 +79,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         binding.btnSend.setOnClickListener {
             if (sendReceiveValidateInput()) {
                 val transferAmount: Int = getDataSize() * 1024 * 1024
-                val senderPort: Int = getDemoCommunity().myEstimatedWan.port;
+                val senderPort: Int = 64000;
 
                 try {
                     // data to send
@@ -85,7 +87,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
                     Arrays.fill(bulk, 0xAF.toByte()) // currently data is just the byte 0xAF over and over
 
                     // socket is defined by the sender's ip and chosen port
-                    val socket = InetSocketAddress(InetAddress.getByName(getDemoCommunity().myEstimatedWan.ip), senderPort)
+                    val socket = InetSocketAddress(InetAddress.getByName(getDemoCommunity().myEstimatedLan.ip), senderPort)
 
                     // instantiate server to send data (it waits for client to through socket first)
                     try {
@@ -217,11 +219,5 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
     private fun updateView() {
         updateAvailablePeers()
         binding.txtResult.text = "Available Peers: ${availablePeers.keys} \nData Size: ${binding.dataSize.text} \nChosen Peer: $chosenPeer"
-    }
-
-    companion object {
-        const val MIN_PORT = 1024
-        const val MAX_PORT = 65535
-        const val SEARCH_BREADTH = 1000
     }
 }
