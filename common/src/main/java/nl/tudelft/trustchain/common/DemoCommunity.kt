@@ -10,6 +10,10 @@ import nl.tudelft.ipv8.messaging.Address
 import nl.tudelft.ipv8.messaging.Packet
 import nl.tudelft.ipv8.messaging.payload.IntroductionResponsePayload
 import nl.tudelft.ipv8.messaging.payload.PuncturePayload
+import nl.tudelft.trustchain.common.messaging.OpenPortPayload
+import java.net.DatagramPacket
+import java.net.DatagramSocket
+import java.net.InetAddress
 import java.util.Date
 
 class DemoCommunity : Community() {
@@ -46,6 +50,8 @@ class DemoCommunity : Community() {
 
     object MessageId {
         const val PUNCTURE_TEST = 251
+        const val OPEN_PORT = 252
+        const val OPEN_PORT_RESPONSE = 253
     }
 
     fun sendPuncture(
@@ -57,13 +63,56 @@ class DemoCommunity : Community() {
         endpoint.send(address, packet)
     }
 
+    fun openPort(
+        address: IPv4Address,
+        portToOpen: Int
+    ) {
+        val payload = OpenPortPayload(portToOpen)
+        val packet = serializePacket(MessageId.OPEN_PORT, payload, sign = false)
+        endpoint.send(address, packet)
+    }
+
     // RECEIVE MESSAGE
     init {
         messageHandlers[MessageId.PUNCTURE_TEST] = ::onPunctureTest
+        messageHandlers[MessageId.OPEN_PORT] = ::onOpenPort
+        messageHandlers[MessageId.OPEN_PORT_RESPONSE] = ::onOpenPortResponse
     }
 
     private fun onPunctureTest(packet: Packet) {
         val payload = packet.getPayload(PuncturePayload.Deserializer)
         punctureChannel.tryEmit(Pair(packet.source, payload))
+    }
+
+    private fun onOpenPort(packet: Packet) {
+        val payload = packet.getPayload(OpenPortPayload.Deserializer)
+        if (packet.source is IPv4Address) {
+            sendData(
+                serializePacket(MessageId.OPEN_PORT_RESPONSE, payload),
+                (packet.source as IPv4Address).ip,
+                (packet.source as IPv4Address).port,
+                payload.port
+            )
+        }
+    }
+
+    private fun sendData(data: ByteArray, serverIp: String, serverPort: Int, clientPort: Int) {
+        try {
+            val address = InetAddress.getByName(serverIp)
+            val socket = DatagramSocket(clientPort)
+
+            val packet = DatagramPacket(data, data.size, address, serverPort)
+            socket.send(packet)
+
+            // Close the socket after sending data
+            socket.close()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun onOpenPortResponse(packet: Packet) {
+
+        System.out.print("Helloooo" + packet.toString());
     }
 }

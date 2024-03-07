@@ -245,7 +245,8 @@ class DataFeeder(private val musicDir: File, private val publish: Boolean) {
         val myKey = JavaCryptoProvider.generateKey()
         val myPeer = Peer(myKey)
         val udpEndpoint = UdpEndpoint(8090, InetAddress.getByName("0.0.0.0"))
-        val endpoint = EndpointAggregator(udpEndpoint, null)
+        val fileEndpoint = UdpEndpoint(8091, InetAddress.getByName("0.0.0.0"))
+        val endpoint = EndpointAggregator(udpEndpoint, null, fileEndpoint)
 
         val config = IPv8Configuration(
             overlays = listOf(

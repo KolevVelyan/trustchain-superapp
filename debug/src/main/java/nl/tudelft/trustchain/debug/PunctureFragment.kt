@@ -68,6 +68,19 @@ class PunctureFragment : BaseFragment(R.layout.fragment_puncture) {
                 }
             }
         }
+
+        binding.btnTestPuncture.setOnClickListener {
+            val address = binding.edtAddress.text.toString().split(":")
+            val portToOpen = binding.portToOpen.text.toString().toInt()
+            if (address.size == 2) {
+                val ip = address[0]
+                val port = address[1].toIntOrNull() ?: 8090
+
+                lifecycleScope.launchWhenCreated {
+                    openPort(ip, port, portToOpen)
+                }
+            }
+        }
     }
 
     /*
@@ -114,6 +127,15 @@ class PunctureFragment : BaseFragment(R.layout.fragment_puncture) {
 
             delay(1000)
         }
+    }
+
+    private suspend fun openPort(
+        ip: String,
+        port: Int,
+        portToOpen: Int
+    ) {
+        val ipv4 = IPv4Address(ip, port)
+        getDemoCommunity().openPort(ipv4, portToOpen)
     }
 
     private fun updateView() {

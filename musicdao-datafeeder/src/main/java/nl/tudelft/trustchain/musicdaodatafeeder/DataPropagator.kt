@@ -65,7 +65,11 @@ fun ipv8() = IPv8(
         udpEndpoint = UdpEndpoint(
             port = 8090,
             ip = InetAddress.getByName("0.0.0.0")
-        ), bluetoothEndpoint = null
+        ), bluetoothEndpoint = null,
+        fileEndpoint = UdpEndpoint(
+            port = 8091,
+            ip = InetAddress.getByName("0.0.0.0")
+        )
     ),
     configuration = IPv8Configuration(
         overlays = listOf(
