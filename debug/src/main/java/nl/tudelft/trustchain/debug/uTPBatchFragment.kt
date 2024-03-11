@@ -32,6 +32,9 @@ import java.nio.ByteBuffer
 import java.util.Arrays
 import java.util.Date
 
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+
 
 class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
     private val binding by viewBinding(FragmentUtpbatchBinding::bind)
@@ -110,7 +113,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
 
     private fun puncturePortOfSender(addr: IPv4Address, port: Int) {
         // try to puncture the uTP server port
-        appendTextToResult("Puncturing port $port of $addr")
+        setTextToResult("Puncturing port $port of $addr")
         getDemoCommunity().openPort(addr, port)
     }
 
@@ -118,7 +121,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         val transferAmount: Int = getDataSize() * 1024
 
         try {
-            appendTextToResult("Starting sender on port $senderPort")
+            setTextToResult("Starting sender on port $senderPort")
 
             // data to send
             val bulk = ByteArray(transferAmount)
@@ -176,7 +179,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         val transferAmount: Int = getDataSize() * 1024
 
         try {
-            appendTextToResult("Starting receiver on port $receiverPort for sender port $senderPort")
+            setTextToResult("Starting receiver on port $receiverPort for sender port $senderPort")
 
 
             // data to send
@@ -211,6 +214,14 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
             val readFuture = channel.read(buffer)
             readFuture.block() // block until all data is received
             appendTextToResult("Received all $transferAmount bytes of data")
+
+            // Rewind the buffer to make sure you're reading from the beginning
+            buffer.rewind()
+
+            // Convert the buffer to a byte array
+            val data = ByteArray(buffer.remaining())
+            buffer.get(data)
+            appendTextToResult("Received data: ${data.contentToString()}")
 
             channel.close()
             appendTextToResult("Channel closed")
@@ -258,11 +269,17 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
             setTextToResult(text)
             return
         }
-        binding.txtResult.text = binding.txtResult.text.toString() + "\n" + text
+        val currentTime = LocalDateTime.now()
+        val formattedTime = currentTime.format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS"))
+
+        binding.txtResult.text = binding.txtResult.text.toString() + "\n" + formattedTime + " | " + text
     }
 
     private fun setTextToResult(text: String) {
-        binding.txtResult.text = text
+        val currentTime = LocalDateTime.now()
+        val formattedTime = currentTime.format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS"))
+
+        binding.txtResult.text = formattedTime + " | " + text
     }
 
     private fun updateAvailablePeers()  {
