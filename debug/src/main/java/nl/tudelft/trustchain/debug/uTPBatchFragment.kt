@@ -80,7 +80,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
 
         binding.btnSend.setOnClickListener {
             if (sendReceiveValidateInput()) {
-                val senderPort: Int = 8091
+                val senderPort: Int = 8093
 
                 setUpSender(senderPort)
             }
@@ -88,7 +88,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
 
         binding.btnConnect.setOnClickListener {
             if (sendReceiveValidateInput()) {
-                val senderPort: Int = 8091
+                val senderPort: Int = 8093
                 val senderWan = getChosenPeer().wanAddress
                 puncturePortOfSender(senderWan, senderPort)
             }
@@ -156,16 +156,19 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
                 out.put(bulk)
                 val fut = channel.write(out)
                 fut.block() // block until all data is sent
-                appendTextToResult("Sent all data")
+                appendTextToResult("Sent all $transferAmount bytes of data")
 
                 channel.close()
                 server.close()
+                appendTextToResult("Channel and server closed")
 
             } catch (e: java.lang.Exception) {
                 e.printStackTrace(System.err)
+                appendTextToResult("Error: ${e.message}")
             }
         } catch (e: java.lang.Exception) {
             e.printStackTrace(System.err)
+            appendTextToResult("Error: ${e.message}")
         }
     }
 
@@ -173,12 +176,18 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         val transferAmount: Int = getDataSize() * 1024
 
         try {
+            appendTextToResult("Starting receiver on port $receiverPort for sender port $senderPort")
+
+
             // data to send
             val bulk = ByteArray(transferAmount)
             Arrays.fill(bulk, 0xAF.toByte()) // currently data is just the byte 0xAF over and over
 
             // socket is defined by the sender's ip and chosen sender port
             val socket = InetSocketAddress(InetAddress.getByName(getChosenPeer().wanAddress.ip), senderPort)
+
+            appendTextToResult("Socket of sender (${socket.toString()}) set up")
+
 
             // instantiate client to receive data
             val c = UtpSocketChannelImpl()
@@ -189,21 +198,26 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
                 throw IOException("Could not open UtpSocketChannel: ${exp.message}")
             }
             val channel: UtpSocketChannel = c
+            appendTextToResult("Channel set up on port $receiverPort")
+
 
 
             val cFut = channel.connect(socket) // connect to server/sender
             cFut.block() // block until connection is established
+            appendTextToResult("Connected to sender")
 
             // Allocate space in buffer and start receiving
             val buffer = ByteBuffer.allocate(bulk.size)
             val readFuture = channel.read(buffer)
             readFuture.block() // block until all data is received
+            appendTextToResult("Received all $transferAmount bytes of data")
 
             channel.close()
+            appendTextToResult("Channel closed")
 
-            binding.txtResult.text = "Received all data"
         } catch (e: Exception) {
             e.printStackTrace(System.err)
+            appendTextToResult("Error: ${e.message}")
         }
     }
 
@@ -240,6 +254,10 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
     }
 
     private fun appendTextToResult(text: String) {
+        if (binding.txtResult.text.isEmpty()) {
+            setTextToResult(text)
+            return
+        }
         binding.txtResult.text = binding.txtResult.text.toString() + "\n" + text
     }
 
