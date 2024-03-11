@@ -80,99 +80,130 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
 
         binding.btnSend.setOnClickListener {
             if (sendReceiveValidateInput()) {
-                val transferAmount: Int = getDataSize() * 1024
                 val senderPort: Int = 8091
 
-                try {
-                    // data to send
-                    val bulk = ByteArray(transferAmount)
-                    Arrays.fill(
-                        bulk,
-                        0xAF.toByte()
-                    ) // currently data is just the byte 0xAF over and over
-
-
-                    // socket is defined by the sender's ip and chosen port
-                    val socket = InetSocketAddress(
-                        InetAddress.getByName(getDemoCommunity().myEstimatedLan.ip),
-                        senderPort
-                    )
-
-                    // instantiate server to send data (it waits for client to through socket first)
-                    try {
-                        // socket is defined by the sender's ip and chosen port
-                        val server = UtpServerSocketChannel.open()
-                        server.bind(socket)
-
-                        // wait until someone connects to server and get new channel
-                        val acceptFuture = server.accept()
-                        acceptFuture.block()
-                        val channel = acceptFuture.channel
-
-                        // send data on newly established channel (with client/receiver)
-                        val out = ByteBuffer.allocate(bulk.size)
-                        out.put(bulk)
-                        val fut = channel.write(out)
-                        fut.block() // block until all data is sent
-
-
-                        channel.close()
-                        server.close()
-                    } catch (e: java.lang.Exception) {
-                        e.printStackTrace(System.err)
-                    }
-                } catch (e: java.lang.Exception) {
-                    e.printStackTrace(System.err)
-                }
+                setUpSender(senderPort)
             }
         }
 
         binding.btnConnect.setOnClickListener {
-            val senderPort: Int = 8091
-            // try to puncture the uTP server port
-            getDemoCommunity().openPort(getChosenPeer().wanAddress, senderPort)
+            if (sendReceiveValidateInput()) {
+                val senderPort: Int = 8091
+                val senderWan = getChosenPeer().wanAddress
+                puncturePortOfSender(senderWan, senderPort)
+            }
         }
 
         binding.btnReceive.setOnClickListener {
            if (sendReceiveValidateInput()) {
-                val transferAmount: Int = getDataSize() * 1024
-                val receiverPort: Int = 9999
+               do {
+               } while (getDemoCommunity().serverWanPort == null)
 
-                try {
-                    // data to send
-                    val bulk = ByteArray(transferAmount)
-                    Arrays.fill(bulk, 0xAF.toByte()) // currently data is just the byte 0xAF over and over
+               val receiverPort: Int = 9999
+               val senderPort: Int = getDemoCommunity().serverWanPort!!
 
-                    do {
-                    } while (getDemoCommunity().serverWanPort == null)
+               setUpReceiver(receiverPort, senderPort)
 
-                    // socket is defined by the sender's ip and chosen port
-                    val socket = InetSocketAddress(InetAddress.getByName(getChosenPeer().wanAddress.ip), getDemoCommunity().serverWanPort!!)
-
-                    // instantiate client to receive data
-                    val c = UtpSocketChannelImpl()
-                    try {
-                        c.dgSocket = DatagramSocket(receiverPort)
-                        c.state = CLOSED
-                    } catch (exp: IOException) {
-                        throw IOException("Could not open UtpSocketChannel: ${exp.message}")
-                    }
-                    val channel: UtpSocketChannel = c
-
-
-                    val cFut = channel.connect(socket) // connect to server/sender
-                    cFut.block() // block until connection is established
-
-                    // Allocate space in buffer and start receiving
-                    val buffer = ByteBuffer.allocate(bulk.size)
-                    val readFuture = channel.read(buffer)
-                    readFuture.block() // block until all data is received
-
-                    channel.close()
-                } catch (e: Exception) {
-                    e.printStackTrace(System.err)
-                }
             }
+        }
+    }
+
+    private fun puncturePortOfSender(addr: IPv4Address, port: Int) {
+        // try to puncture the uTP server port
+        appendTextToResult("Puncturing port $port of $addr")
+        getDemoCommunity().openPort(addr, port)
+    }
+
+    private fun setUpSender(senderPort: Int) {
+        val transferAmount: Int = getDataSize() * 1024
+
+        try {
+            appendTextToResult("Starting sender on port $senderPort")
+
+            // data to send
+            val bulk = ByteArray(transferAmount)
+            Arrays.fill(
+                bulk,
+                0xAF.toByte()
+            ) // currently data is just the byte 0xAF over and over
+
+
+            // socket is defined by the sender's ip and chosen port
+            val socket = InetSocketAddress(
+                InetAddress.getByName(getDemoCommunity().myEstimatedLan.ip),
+                senderPort
+            )
+            appendTextToResult("Socket ${socket.toString()} set up")
+
+            // instantiate server to send data (it waits for client to through socket first)
+            try {
+                // socket is defined by the sender's ip and chosen port
+                val server = UtpServerSocketChannel.open()
+                server.bind(socket)
+
+                appendTextToResult("Server bound to socket")
+
+                // wait until someone connects to server and get new channel
+                val acceptFuture = server.accept()
+                appendTextToResult("Waiting for client to connect")
+                acceptFuture.block()
+
+                appendTextToResult("Client has connected to server")
+                val channel = acceptFuture.channel
+
+                // send data on newly established channel (with client/receiver)
+                val out = ByteBuffer.allocate(bulk.size)
+                out.put(bulk)
+                val fut = channel.write(out)
+                fut.block() // block until all data is sent
+                appendTextToResult("Sent all data")
+
+                channel.close()
+                server.close()
+
+            } catch (e: java.lang.Exception) {
+                e.printStackTrace(System.err)
+            }
+        } catch (e: java.lang.Exception) {
+            e.printStackTrace(System.err)
+        }
+    }
+
+    private fun setUpReceiver(receiverPort: Int, senderPort: Int) {
+        val transferAmount: Int = getDataSize() * 1024
+
+        try {
+            // data to send
+            val bulk = ByteArray(transferAmount)
+            Arrays.fill(bulk, 0xAF.toByte()) // currently data is just the byte 0xAF over and over
+
+            // socket is defined by the sender's ip and chosen sender port
+            val socket = InetSocketAddress(InetAddress.getByName(getChosenPeer().wanAddress.ip), senderPort)
+
+            // instantiate client to receive data
+            val c = UtpSocketChannelImpl()
+            try {
+                c.dgSocket = DatagramSocket(receiverPort)
+                c.state = CLOSED
+            } catch (exp: IOException) {
+                throw IOException("Could not open UtpSocketChannel: ${exp.message}")
+            }
+            val channel: UtpSocketChannel = c
+
+
+            val cFut = channel.connect(socket) // connect to server/sender
+            cFut.block() // block until connection is established
+
+            // Allocate space in buffer and start receiving
+            val buffer = ByteBuffer.allocate(bulk.size)
+            val readFuture = channel.read(buffer)
+            readFuture.block() // block until all data is received
+
+            channel.close()
+
+            binding.txtResult.text = "Received all data"
+        } catch (e: Exception) {
+            e.printStackTrace(System.err)
         }
     }
 
@@ -208,6 +239,14 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         return chosenPeer as Peer
     }
 
+    private fun appendTextToResult(text: String) {
+        binding.txtResult.text = binding.txtResult.text.toString() + "\n" + text
+    }
+
+    private fun setTextToResult(text: String) {
+        binding.txtResult.text = text
+    }
+
     private fun updateAvailablePeers()  {
         // get current peers
         val currPeers: List<Peer> = getDemoCommunity().getPeers()
@@ -236,6 +275,6 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
 
     private fun updateView() {
         updateAvailablePeers()
-        binding.txtResult.text = "Available Peers: ${availablePeers.keys} \nData Size: ${binding.dataSize.text} \nChosen Peer: $chosenPeer"
+//        binding.txtResult.text = "Available Peers: ${availablePeers.keys} \nData Size: ${binding.dataSize.text} \nChosen Peer: $chosenPeer"
     }
 }

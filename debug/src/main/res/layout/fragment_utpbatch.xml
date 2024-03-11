@@ -32,7 +32,7 @@
         android:id="@+id/textView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Amount of data in transfer (Mb)"
+        android:text="Amount of data in transfer (Kb)"
         android:textSize="18sp" />
 
     <EditText
