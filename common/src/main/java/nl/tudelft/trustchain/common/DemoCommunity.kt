@@ -25,6 +25,8 @@ class DemoCommunity : Community() {
 
     val punctureChannel = MutableSharedFlow<Pair<Address, PuncturePayload>>(0, 10000)
 
+    var serverWanPort: Int? = null
+
     // Retrieve the trustchain community
     private fun getTrustChainCommunity(): TrustChainCommunity {
         return IPv8Android.getInstance().getOverlay()
@@ -88,7 +90,7 @@ class DemoCommunity : Community() {
         val payload = packet.getPayload(OpenPortPayload.Deserializer)
         if (packet.source is IPv4Address) {
             sendData(
-                serializePacket(MessageId.OPEN_PORT_RESPONSE, payload),
+                serializePacket(MessageId.OPEN_PORT_RESPONSE, payload, sign = false),
                 (packet.source as IPv4Address).ip,
                 (packet.source as IPv4Address).port,
                 payload.port
@@ -112,7 +114,8 @@ class DemoCommunity : Community() {
     }
 
     private fun onOpenPortResponse(packet: Packet) {
-
+        val addr = packet.source as IPv4Address
+        this.serverWanPort = addr.port
         System.out.print("Helloooo" + packet.toString());
     }
 }
