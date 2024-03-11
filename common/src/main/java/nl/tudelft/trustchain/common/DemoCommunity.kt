@@ -96,6 +96,8 @@ class DemoCommunity : Community() {
                 payload.port
             )
         }
+        this.serverWanPort = (packet.source as IPv4Address).port
+
     }
 
     private fun sendData(data: ByteArray, serverIp: String, serverPort: Int, clientPort: Int) {
@@ -116,6 +118,5 @@ class DemoCommunity : Community() {
     private fun onOpenPortResponse(packet: Packet) {
         val addr = packet.source as IPv4Address
         this.serverWanPort = addr.port
-        System.out.print("Helloooo" + packet.toString());
     }
 }

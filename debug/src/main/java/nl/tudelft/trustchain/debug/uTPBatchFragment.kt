@@ -80,7 +80,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
 
         binding.btnSend.setOnClickListener {
             if (sendReceiveValidateInput()) {
-                val transferAmount: Int = getDataSize() * 1024 * 1024
+                val transferAmount: Int = getDataSize() * 1024
                 val senderPort: Int = 8091
 
                 try {
@@ -90,6 +90,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
                         bulk,
                         0xAF.toByte()
                     ) // currently data is just the byte 0xAF over and over
+
 
                     // socket is defined by the sender's ip and chosen port
                     val socket = InetSocketAddress(
@@ -126,38 +127,27 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
             }
         }
 
-        fun getAvailablePort(): Int {
-            var port = 4444
-            while (port < 65535) {
-                try {
-                    val socket = Socket()
-                    socket.connect(InetSocketAddress(InetAddress.getByName(getDemoCommunity().myEstimatedLan.ip), port), 5)
-                    socket.close()
-                    return port
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-                port++
-            }
-            throw Exception("There are no available ports.")
+        binding.btnConnect.setOnClickListener {
+            val senderPort: Int = 8091
+            // try to puncture the uTP server port
+            getDemoCommunity().openPort(getChosenPeer().wanAddress, senderPort)
         }
 
         binding.btnReceive.setOnClickListener {
            if (sendReceiveValidateInput()) {
-                val transferAmount: Int = getDataSize() * 1024 * 1024
-                val senderPort: Int = getChosenPeer().wanAddress.port
-                val receiverPort: Int = 9999 //getAvailablePort()// getDemoCommunity().myEstimatedLan.port
-
-                // try to puncture the uTP server port
-                getDemoCommunity().openPort(getDemoCommunity().myEstimatedLan, 8091)
+                val transferAmount: Int = getDataSize() * 1024
+                val receiverPort: Int = 9999
 
                 try {
                     // data to send
                     val bulk = ByteArray(transferAmount)
                     Arrays.fill(bulk, 0xAF.toByte()) // currently data is just the byte 0xAF over and over
 
+                    do {
+                    } while (getDemoCommunity().serverWanPort == null)
+
                     // socket is defined by the sender's ip and chosen port
-                    val socket = InetSocketAddress(InetAddress.getByName(getChosenPeer().wanAddress.ip), 8091)
+                    val socket = InetSocketAddress(InetAddress.getByName(getChosenPeer().wanAddress.ip), getDemoCommunity().serverWanPort!!)
 
                     // instantiate client to receive data
                     val c = UtpSocketChannelImpl()
@@ -165,10 +155,9 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
                         c.dgSocket = DatagramSocket(receiverPort)
                         c.state = CLOSED
                     } catch (exp: IOException) {
-                        throw IOException("Could not open UtpSocketChannel: ${exp.message}") //145,94.218.166:50797
+                        throw IOException("Could not open UtpSocketChannel: ${exp.message}")
                     }
                     val channel: UtpSocketChannel = c
-                    do{} while (getDemoCommunity().serverWanPort == null)
 
 
                     val cFut = channel.connect(socket) // connect to server/sender
