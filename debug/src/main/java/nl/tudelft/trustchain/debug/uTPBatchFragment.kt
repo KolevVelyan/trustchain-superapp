@@ -264,22 +264,18 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         return chosenPeer as Peer
     }
 
-    private fun appendTextToResult(text: String) {
-        if (binding.txtResult.text.isEmpty()) {
-            setTextToResult(text)
-            return
+    private fun setTextToResult(text: String) {
+        appendTextToResult(text, false)
+    }
+
+    private fun appendTextToResult(text: String, newline: Boolean = true) {
+        var oldText = binding.txtResult.text.toString() + "\n"
+        if (binding.txtResult.text.isEmpty() || !newline) {
+            oldText = ""
         }
         val currentTime = LocalDateTime.now()
         val formattedTime = currentTime.format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS"))
-
-        binding.txtResult.text = binding.txtResult.text.toString() + "\n" + formattedTime + " | " + text
-    }
-
-    private fun setTextToResult(text: String) {
-        val currentTime = LocalDateTime.now()
-        val formattedTime = currentTime.format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS"))
-
-        binding.txtResult.text = formattedTime + " | " + text
+        binding.txtResult.text = oldText + formattedTime + " | " + text
     }
 
     private fun updateAvailablePeers()  {
