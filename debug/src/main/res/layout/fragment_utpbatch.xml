@@ -32,7 +32,7 @@
         android:id="@+id/textViewVotes"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Vote Files"
+        android:text="Data Input Location"
         android:textSize="18sp" />
 
     <com.google.android.material.textfield.TextInputLayout

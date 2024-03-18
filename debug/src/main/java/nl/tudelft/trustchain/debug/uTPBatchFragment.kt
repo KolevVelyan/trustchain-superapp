@@ -40,19 +40,13 @@ import java.time.format.DateTimeFormatter
 class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
     private val binding by viewBinding(FragmentUtpbatchBinding::bind)
 
-    private var sent = 0
-    private var received = 0
+    private val CUSTOM_DATA_SIZE = "Custom Data Size"
 
     private var availablePeers = HashMap<IPv4Address, Peer>()
     private var chosenPeer: Peer? = null
 
     private var availableVotes : Array<String> = emptyArray()
     private var chosenVote: String = ""
-
-
-    private val receivedMap = mutableMapOf<String, Int>()
-    private val firstMessageTimestamps = mutableMapOf<String, Date>()
-    private var firstSentMessageTimestamp: Date? = null
 
     override fun onViewCreated(
         view: View,
@@ -77,11 +71,6 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
                     "PunctureFragment",
                     "Received puncture from $peer on port ${payload.identifier}"
                 )
-                received++
-                receivedMap[peer.toString()] = (receivedMap[peer.toString()] ?: 0) + 1
-                if (firstMessageTimestamps[peer.toString()] == null) {
-                    firstMessageTimestamps[peer.toString()] = Date()
-                }
             }
         }
 
@@ -94,7 +83,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         }
 
         binding.btnConnect.setOnClickListener {
-            if (sendReceiveValidateInput()) {
+            if (sendReceiveValidateInput(false)) {
                 val senderPort: Int = 8093
                 val senderWan = getChosenPeer().wanAddress
                 puncturePortOfSender(senderWan, senderPort)
@@ -102,7 +91,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         }
 
         binding.btnReceive.setOnClickListener {
-           if (sendReceiveValidateInput()) {
+           if (sendReceiveValidateInput(false)) {
                do {
                } while (getDemoCommunity().serverWanPort == null)
 
@@ -124,7 +113,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
     private fun setUpSender(senderPort: Int) {
         var transferAmount: Int = 0
         var byteData: ByteArray = ByteArray(0)
-        if (chosenVote == "") {
+        if (chosenVote == CUSTOM_DATA_SIZE || chosenVote.isEmpty()) {
             transferAmount = getDataSize() * 1024
             // data to send
             byteData = ByteArray(transferAmount)
@@ -188,13 +177,6 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
 
     private fun setUpReceiver(receiverPort: Int, senderPort: Int) {
         var transferAmount = getDemoCommunity().receivedDataSize
-//        if (chosenVote == "") {
-//            transferAmount = getDataSize() * 1024
-//        } else {
-//            val byteData = readCsvToByteArray(chosenVote)
-//            transferAmount = byteData.size
-//            transferAmount = 3351188
-//        }
 
         try {
             setTextToResult("Starting receiver on port $receiverPort for sender port $senderPort")
@@ -246,15 +228,16 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         }
     }
 
-    private fun sendReceiveValidateInput(): Boolean {
+    private fun sendReceiveValidateInput(includeData: Boolean = true): Boolean {
         val context: Context = requireContext()
+
 
         if (chosenPeer == null) {
             Toast.makeText(context, "Invalid peer", Toast.LENGTH_SHORT).show()
             return false
         }
 
-        if (binding.dataSize.text.toString().isEmpty()) {
+        if (includeData && binding.dataSize.text.toString().isEmpty() && binding.dataSize.isEnabled) {
             Toast.makeText(context, "Invalid data size", Toast.LENGTH_SHORT).show()
             return false
         }
@@ -347,6 +330,9 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         } catch (e: IOException) {
             e.printStackTrace()
         }
+        // add CUSTOM_DATA_SIZE to the list of available votes
+        csvFileNames.add(CUSTOM_DATA_SIZE)
+
         return csvFileNames.toTypedArray()
     }
 
@@ -365,7 +351,18 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
 
                 val itemSelected = adapterView.getItemAtPosition(i)
                 chosenVote = itemSelected.toString()
-                getDemoCommunity().currentDataSize = readCsvToByteArray(chosenVote).size
+
+                if (chosenVote == CUSTOM_DATA_SIZE || chosenVote.isEmpty()) {
+                    binding.dataSize.text.clear()
+                    binding.dataSize.isEnabled = true
+                    getDemoCommunity().senderDataSize = getDataSize() * 1024
+                } else {
+                    val dataSize = readCsvToByteArray(chosenVote).size
+                    getDemoCommunity().senderDataSize =dataSize
+                    binding.dataSize.setText(dataSize.toString())
+                    binding.dataSize.isEnabled = false
+                }
+
             }
         }
     }

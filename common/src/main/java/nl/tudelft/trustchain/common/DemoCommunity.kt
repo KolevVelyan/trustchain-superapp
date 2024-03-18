@@ -26,8 +26,7 @@ class DemoCommunity : Community() {
     val punctureChannel = MutableSharedFlow<Pair<Address, PuncturePayload>>(0, 10000)
 
     var serverWanPort: Int? = null
-
-    var currentDataSize: Int = 0
+    var senderDataSize: Int = 0
     var receivedDataSize: Int = 0
 
     // Retrieve the trustchain community
@@ -91,7 +90,7 @@ class DemoCommunity : Community() {
 
     private fun onOpenPort(packet: Packet) {
         val payload = packet.getPayload(OpenPortPayload.Deserializer)
-        payload.dataSize = currentDataSize
+        payload.dataSize = senderDataSize
         if (packet.source is IPv4Address) {
             sendData(
                 serializePacket(MessageId.OPEN_PORT_RESPONSE, payload, sign = false),
@@ -108,7 +107,6 @@ class DemoCommunity : Community() {
             val socket = DatagramSocket(clientPort)
 
             val packet = DatagramPacket(data, data.size, address, serverPort)
-            println(OpenPortPayload.deserialize(data, 0).first.dataSize)
             socket.send(packet)
 
             // Close the socket after sending data
