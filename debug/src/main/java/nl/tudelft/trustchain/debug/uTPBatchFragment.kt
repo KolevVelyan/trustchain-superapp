@@ -11,6 +11,7 @@ import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
 import android.widget.Toast
+import androidx.core.widget.doOnTextChanged
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -100,6 +101,12 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
 
                setUpReceiver(receiverPort, senderPort)
 
+            }
+        }
+
+        binding.dataSize.doOnTextChanged { text, _, _, _ ->
+            if (!text.isNullOrEmpty()) {
+                getDemoCommunity().senderDataSize = text.toString().toInt() * 1024
             }
         }
     }
@@ -222,7 +229,9 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
             val data = ByteArray(buffer.remaining())
             buffer.get(data)
 
-            appendTextToResult("Received data: ${converDataToHex(data)}")
+            val utf8String: String = String(data, Charsets.UTF_8)
+            appendTextToResult("Received data: \n${convertDataToUTF8(data)}")
+//            appendTextToResult("Received data: ${converDataToHex(data)}")
 
             channel.close()
             appendTextToResult("Channel closed")
@@ -280,6 +289,11 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         }
 
         return hexString
+    }
+
+    private fun convertDataToUTF8(data: ByteArray): String {
+        val utf8String = String(data, Charsets.UTF_8)
+        return if (utf8String.length > 1000) utf8String.substring(0, 1000) else utf8String
     }
 
     private fun setTextToResult(text: String) {
@@ -358,9 +372,9 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
                 chosenVote = itemSelected.toString()
 
                 if (chosenVote == CUSTOM_DATA_SIZE || chosenVote.isEmpty()) {
-                    binding.dataSize.text.clear()
                     binding.dataSize.isEnabled = true
-                    getDemoCommunity().senderDataSize = getDataSize() * 1024
+                    binding.dataSize.setText("0")
+                    getDemoCommunity().senderDataSize = 0
                 } else {
                     val dataSize = readCsvToByteArray(chosenVote).size
                     getDemoCommunity().senderDataSize = dataSize
@@ -387,6 +401,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
     private fun updateView() {
         updateAvailablePeers()
         updateVoteFiles()
+        binding.txtResult.text = getDemoCommunity().senderDataSize.toString()
 //        binding.txtResult.text = "Available Peers: ${availablePeers.keys} \nData Size: ${binding.dataSize.text} \nChosen Peer: $chosenPeer"
     }
 }
