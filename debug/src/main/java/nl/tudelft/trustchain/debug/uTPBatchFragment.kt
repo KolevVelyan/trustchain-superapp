@@ -221,7 +221,8 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
             // Convert the buffer to a byte array
             val data = ByteArray(buffer.remaining())
             buffer.get(data)
-            appendTextToResult("Received data: ${data.contentToString()}")
+
+            appendTextToResult("Received data: ${converDataToHex(data)}")
 
             channel.close()
             appendTextToResult("Channel closed")
@@ -262,6 +263,16 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         if (chosenPeer == null) throw IllegalArgumentException("invalid peer")
 
         return chosenPeer as Peer
+    }
+
+    private fun converDataToHex(data: ByteArray): String {
+        val hexString = buildString {
+            for (byte in data) {
+                append("%02X".format(byte))
+            }
+        }
+
+        return hexString
     }
 
     private fun setTextToResult(text: String) {
