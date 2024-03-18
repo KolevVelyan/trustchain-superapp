@@ -187,12 +187,14 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
     }
 
     private fun setUpReceiver(receiverPort: Int, senderPort: Int) {
-        var transferAmount: Int = 0
-        transferAmount = if (chosenVote == "") {
-            getDataSize() * 1024
-        } else {
-            readCsvToByteArray(chosenVote).size
-        }
+        var transferAmount = getDemoCommunity().receivedDataSize
+//        if (chosenVote == "") {
+//            transferAmount = getDataSize() * 1024
+//        } else {
+//            val byteData = readCsvToByteArray(chosenVote)
+//            transferAmount = byteData.size
+//            transferAmount = 3351188
+//        }
 
         try {
             setTextToResult("Starting receiver on port $receiverPort for sender port $senderPort")
@@ -233,7 +235,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
             val data = ByteArray(buffer.remaining())
             buffer.get(data)
 
-//            appendTextToResult("Received data: ${converDataToHex(data)}")
+            appendTextToResult("Received data: ${converDataToHex(data)}")
 
             channel.close()
             appendTextToResult("Channel closed")
@@ -277,9 +279,15 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
     }
 
     private fun converDataToHex(data: ByteArray): String {
+        var maxBytes = 3 * 1024
         val hexString = buildString {
             for (byte in data) {
+                if (maxBytes <= 0) {
+                    append("...")
+                    break
+                }
                 append("%02X".format(byte))
+                maxBytes--
             }
         }
 
@@ -357,6 +365,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
 
                 val itemSelected = adapterView.getItemAtPosition(i)
                 chosenVote = itemSelected.toString()
+                getDemoCommunity().currentDataSize = readCsvToByteArray(chosenVote).size
             }
         }
     }

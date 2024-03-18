@@ -27,6 +27,9 @@ class DemoCommunity : Community() {
 
     var serverWanPort: Int? = null
 
+    var currentDataSize: Int = 0
+    var receivedDataSize: Int = 0
+
     // Retrieve the trustchain community
     private fun getTrustChainCommunity(): TrustChainCommunity {
         return IPv8Android.getInstance().getOverlay()
@@ -88,6 +91,7 @@ class DemoCommunity : Community() {
 
     private fun onOpenPort(packet: Packet) {
         val payload = packet.getPayload(OpenPortPayload.Deserializer)
+        payload.dataSize = currentDataSize
         if (packet.source is IPv4Address) {
             sendData(
                 serializePacket(MessageId.OPEN_PORT_RESPONSE, payload, sign = false),
@@ -104,6 +108,7 @@ class DemoCommunity : Community() {
             val socket = DatagramSocket(clientPort)
 
             val packet = DatagramPacket(data, data.size, address, serverPort)
+            println(OpenPortPayload.deserialize(data, 0).first.dataSize)
             socket.send(packet)
 
             // Close the socket after sending data
@@ -115,5 +120,6 @@ class DemoCommunity : Community() {
 
     private fun onOpenPortResponse(packet: Packet) {
         this.serverWanPort = (packet.source as IPv4Address).port
+        this.receivedDataSize = packet.getPayload(OpenPortPayload.Deserializer).dataSize
     }
 }
