@@ -116,10 +116,11 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         }
 
         binding.dataSize.doOnTextChanged { text, _, _, _ ->
-            if (!text.isNullOrEmpty()) {
+            if (!text.isNullOrEmpty() && binding.dataSize.isEnabled) {
                 getDemoCommunity().senderDataSize = text.toString().toInt() * 1024
             }
         }
+
     }
 
     private fun puncturePortOfSender(addr: IPv4Address, port: Int) {
@@ -232,7 +233,6 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
             val buffer = ByteBuffer.allocate(transferAmount)
             val readFuture = channel.read(buffer)
             readFuture.block() // block until all data is received
-            appendTextToResult("Received all $transferAmount bytes of data")
 
             // Rewind the buffer to make sure you're reading from the beginning
             buffer.rewind()
@@ -240,6 +240,9 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
             // Convert the buffer to a byte array
             val data = ByteArray(buffer.remaining())
             buffer.get(data)
+            appendTextToResult("Received all ${data.size} bytes of data")
+
+
 
             val utf8String: String = String(data, Charsets.UTF_8)
             appendTextToResult("Received data: \n${convertDataToUTF8(data)}")
@@ -391,7 +394,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
                     binding.dataSize.isEnabled = false
                     val dataSize = readCsvToByteArray(chosenVote).size
                     getDemoCommunity().senderDataSize = dataSize
-                    binding.dataSize.setText((dataSize / 1024) + 1)
+                    binding.dataSize.setText((dataSize / 1024).toString())
                 }
 
             }
