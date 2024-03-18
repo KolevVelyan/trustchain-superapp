@@ -88,13 +88,6 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         }
 
         binding.btnConnect.setOnClickListener {
-//            val port = 1234
-//            val ds = 3351188
-//            val payload = OpenPortPayload(port, ds)
-//            val packet = getDemoCommunity().serializePacket(DemoCommunity.MessageId.OPEN_PORT_RESPONSE, payload, sign = false)
-//            val deserialised = OpenPortPayload.Deserializer.deserialize(packet, 0)
-//            binding.txtResult.text = "Deserialised: ${deserialised.first.port} ${deserialised.first.dataSize}"
-
             if (sendReceiveValidateInput(false)) {
                 val senderPort: Int = 8093
                 val senderWan = getChosenPeer().wanAddress
@@ -246,7 +239,6 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
 
             val utf8String: String = String(data, Charsets.UTF_8)
             appendTextToResult("Received data: \n${convertDataToUTF8(data)}")
-//            appendTextToResult("Received data: ${converDataToHex(data)}")
 
             channel.close()
             appendTextToResult("Channel closed")
@@ -288,22 +280,6 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         if (chosenPeer == null) throw IllegalArgumentException("invalid peer")
 
         return chosenPeer as Peer
-    }
-
-    private fun converDataToHex(data: ByteArray): String {
-        var maxBytes = 3 * 1024
-        val hexString = buildString {
-            for (byte in data) {
-                if (maxBytes <= 0) {
-                    append("...")
-                    break
-                }
-                append("%02X".format(byte))
-                maxBytes--
-            }
-        }
-
-        return hexString
     }
 
     private fun convertDataToUTF8(data: ByteArray): String {
