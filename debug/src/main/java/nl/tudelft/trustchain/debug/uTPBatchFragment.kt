@@ -176,10 +176,15 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
     }
 
     private fun setUpReceiver(receiverPort: Int, senderPort: Int) {
-        var transferAmount = getDemoCommunity().receivedDataSize
-
         try {
-            setTextToResult("Starting receiver on port $receiverPort for sender port $senderPort")
+            var transferAmount: Int = 0
+            if (getDemoCommunity().receivedDataSize == 0 || getDemoCommunity().serverWanPort == null) {
+                throw IllegalArgumentException("Invalid data size received from server")
+            } else {
+                transferAmount = getDemoCommunity().receivedDataSize!!
+                setTextToResult("Expecting $transferAmount bytes of data from sender")
+            }
+            appendTextToResult("Starting receiver on port $receiverPort for sender port $senderPort")
 
             // socket is defined by the sender's ip and chosen sender port
             val socket = InetSocketAddress(InetAddress.getByName(getChosenPeer().wanAddress.ip), senderPort)
@@ -358,8 +363,8 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
                     getDemoCommunity().senderDataSize = getDataSize() * 1024
                 } else {
                     val dataSize = readCsvToByteArray(chosenVote).size
-                    getDemoCommunity().senderDataSize =dataSize
-                    binding.dataSize.setText(dataSize.toString())
+                    getDemoCommunity().senderDataSize = dataSize
+                    binding.dataSize.setText((dataSize / 1024).toString())
                     binding.dataSize.isEnabled = false
                 }
 
