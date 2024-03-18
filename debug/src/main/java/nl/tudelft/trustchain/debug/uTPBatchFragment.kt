@@ -23,6 +23,7 @@ import nl.tudelft.ipv8.Peer
 import nl.tudelft.trustchain.common.ui.BaseFragment
 import nl.tudelft.trustchain.common.util.viewBinding
 import nl.tudelft.trustchain.debug.databinding.FragmentUtpbatchBinding
+import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.net.DatagramSocket
 import java.net.InetAddress
@@ -44,6 +45,9 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
 
     private var availablePeers = HashMap<IPv4Address, Peer>()
     private var chosenPeer: Peer? = null
+
+    private var availableVotes : Array<String> = emptyArray()
+    private var chosenVote: String = ""
 
 
     private val receivedMap = mutableMapOf<String, Int>()
@@ -118,17 +122,24 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
     }
 
     private fun setUpSender(senderPort: Int) {
-        val transferAmount: Int = getDataSize() * 1024
+        var transferAmount: Int = 0
+        var byteData: ByteArray = ByteArray(0)
+        if (chosenVote == "") {
+            transferAmount = getDataSize() * 1024
+            // data to send
+            byteData = ByteArray(transferAmount)
+            Arrays.fill(
+                byteData,
+                0xAF.toByte()
+            ) // currently data is just the byte 0xAF over and over
+        } else {
+            byteData = readCsvToByteArray(chosenVote)
+            transferAmount = byteData.size
+        }
+
 
         try {
             setTextToResult("Starting sender on port $senderPort")
-
-            // data to send
-            val bulk = ByteArray(transferAmount)
-            Arrays.fill(
-                bulk,
-                0xAF.toByte()
-            ) // currently data is just the byte 0xAF over and over
 
 
             // socket is defined by the sender's ip and chosen port
@@ -155,8 +166,8 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
                 val channel = acceptFuture.channel
 
                 // send data on newly established channel (with client/receiver)
-                val out = ByteBuffer.allocate(bulk.size)
-                out.put(bulk)
+                val out = ByteBuffer.allocate(transferAmount)
+                out.put(byteData)
                 val fut = channel.write(out)
                 fut.block() // block until all data is sent
                 appendTextToResult("Sent all $transferAmount bytes of data")
@@ -176,15 +187,15 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
     }
 
     private fun setUpReceiver(receiverPort: Int, senderPort: Int) {
-        val transferAmount: Int = getDataSize() * 1024
+        var transferAmount: Int = 0
+        transferAmount = if (chosenVote == "") {
+            getDataSize() * 1024
+        } else {
+            readCsvToByteArray(chosenVote).size
+        }
 
         try {
             setTextToResult("Starting receiver on port $receiverPort for sender port $senderPort")
-
-
-            // data to send
-            val bulk = ByteArray(transferAmount)
-            Arrays.fill(bulk, 0xAF.toByte()) // currently data is just the byte 0xAF over and over
 
             // socket is defined by the sender's ip and chosen sender port
             val socket = InetSocketAddress(InetAddress.getByName(getChosenPeer().wanAddress.ip), senderPort)
@@ -210,7 +221,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
             appendTextToResult("Connected to sender")
 
             // Allocate space in buffer and start receiving
-            val buffer = ByteBuffer.allocate(bulk.size)
+            val buffer = ByteBuffer.allocate(transferAmount)
             val readFuture = channel.read(buffer)
             readFuture.block() // block until all data is received
             appendTextToResult("Received all $transferAmount bytes of data")
@@ -222,7 +233,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
             val data = ByteArray(buffer.remaining())
             buffer.get(data)
 
-            appendTextToResult("Received data: ${converDataToHex(data)}")
+//            appendTextToResult("Received data: ${converDataToHex(data)}")
 
             channel.close()
             appendTextToResult("Channel closed")
@@ -314,9 +325,57 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         }
     }
 
+    fun getFileNames(folderPath: String): Array<String> {
+        val csvFileNames = mutableListOf<String>()
+        try {
+            // List all files in the "app/assets" folder
+            val files = requireContext().assets.list("") ?: return emptyArray()
+            for (file in files) {
+                // Check if the file is a CSV file
+                if (file.endsWith(".csv")) {
+                    csvFileNames.add(file)
+                }
+            }
+        } catch (e: IOException) {
+            e.printStackTrace()
+        }
+        return csvFileNames.toTypedArray()
+    }
+
+    private fun updateVoteFiles() {
+        val voteFiles = getFileNames("")
+        if (!voteFiles.contentEquals(availableVotes)) {
+            // peers have changed need to update
+            availableVotes = voteFiles
+            val autoComplete: AutoCompleteTextView = binding.autoCompleteVotes
+            val context: Context = requireContext()
+            val adapter = ArrayAdapter(context, R.layout.vote_item, availableVotes)
+
+            autoComplete.setAdapter(adapter)
+            autoComplete.onItemClickListener = AdapterView.OnItemClickListener {
+                    adapterView, _, i, _ ->
+
+                val itemSelected = adapterView.getItemAtPosition(i)
+                chosenVote = itemSelected.toString()
+            }
+        }
+    }
+
+    fun readCsvToByteArray(fileName: String): ByteArray {
+        val inputStream = requireContext().assets.open(fileName)
+        val outputStream = ByteArrayOutputStream()
+        val buffer = ByteArray(1024)
+        var length: Int
+        while (inputStream.read(buffer).also { length = it } != -1) {
+            outputStream.write(buffer, 0, length)
+        }
+        inputStream.close()
+        return outputStream.toByteArray()
+    }
 
     private fun updateView() {
         updateAvailablePeers()
+        updateVoteFiles()
 //        binding.txtResult.text = "Available Peers: ${availablePeers.keys} \nData Size: ${binding.dataSize.text} \nChosen Peer: $chosenPeer"
     }
 }
