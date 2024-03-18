@@ -196,7 +196,6 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
                 transferAmount = getDemoCommunity().receivedDataSize!!
                 setTextToResult("Expecting $transferAmount bytes of data from sender")
             }
-            println(transferAmount)
             appendTextToResult("Starting receiver on port $receiverPort for sender port $senderPort")
 
             // socket is defined by the sender's ip and chosen sender port
