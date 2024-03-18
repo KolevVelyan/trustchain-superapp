@@ -1,6 +1,5 @@
 package nl.tudelft.trustchain.debug
 
-import android.R.attr.port
 import android.content.Context
 import android.os.Bundle
 import android.os.StrictMode
@@ -27,13 +26,12 @@ import java.io.IOException
 import java.net.DatagramSocket
 import java.net.InetAddress
 import java.net.InetSocketAddress
-import java.net.Socket
 import java.nio.ByteBuffer
-import java.util.Arrays
-import java.util.Date
-
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.Arrays
+import java.util.Date
+import java.time.Duration
 
 
 class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
@@ -152,6 +150,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
                 acceptFuture.block()
 
                 appendTextToResult("Client has connected to server")
+                val startTime = LocalDateTime.now()
                 val channel = acceptFuture.channel
 
                 // send data on newly established channel (with client/receiver)
@@ -159,7 +158,8 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
                 out.put(bulk)
                 val fut = channel.write(out)
                 fut.block() // block until all data is sent
-                appendTextToResult("Sent all $transferAmount bytes of data")
+                val timeStats = calculateTimeStats(startTime, transferAmount)
+                appendTextToResult("Sent all $transferAmount bytes of data in $timeStats")
 
                 channel.close()
                 server.close()
@@ -276,6 +276,20 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         val currentTime = LocalDateTime.now()
         val formattedTime = currentTime.format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS"))
         binding.txtResult.text = oldText + formattedTime + " | " + text
+    }
+
+    private fun calculateTimeStats(startTime: LocalDateTime, dataAmount: Int): String {
+        val endTime = LocalDateTime.now()
+        val duration: Duration = Duration.between(startTime, endTime)
+
+        val seconds: Long = duration.getSeconds()
+        val hours: Long = duration.toHours()
+        val minutes: Long = duration.toMinutes()
+
+        val speed = if (seconds > 0) dataAmount / seconds else 0
+
+        val text = "$seconds seconds (transfer speed: $speed bytes/second)"
+        return text
     }
 
     private fun updateAvailablePeers()  {
