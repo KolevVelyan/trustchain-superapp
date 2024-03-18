@@ -21,6 +21,7 @@ import net.utp4j.channels.UtpSocketState.CLOSED
 import net.utp4j.channels.impl.UtpSocketChannelImpl
 import nl.tudelft.ipv8.IPv4Address
 import nl.tudelft.ipv8.Peer
+import nl.tudelft.trustchain.common.DemoCommunity
 import nl.tudelft.trustchain.common.ui.BaseFragment
 import nl.tudelft.trustchain.common.util.viewBinding
 import nl.tudelft.trustchain.debug.databinding.FragmentUtpbatchBinding
@@ -33,6 +34,9 @@ import java.net.Socket
 import java.nio.ByteBuffer
 import java.util.Arrays
 import java.util.Date
+import nl.tudelft.trustchain.common.messaging.OpenPortPayload
+import nl.tudelft.ipv8.Community
+import java.net.DatagramPacket
 
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -84,6 +88,13 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         }
 
         binding.btnConnect.setOnClickListener {
+//            val port = 1234
+//            val ds = 3351188
+//            val payload = OpenPortPayload(port, ds)
+//            val packet = getDemoCommunity().serializePacket(DemoCommunity.MessageId.OPEN_PORT_RESPONSE, payload, sign = false)
+//            val deserialised = OpenPortPayload.Deserializer.deserialize(packet, 0)
+//            binding.txtResult.text = "Deserialised: ${deserialised.first.port} ${deserialised.first.dataSize}"
+
             if (sendReceiveValidateInput(false)) {
                 val senderPort: Int = 8093
                 val senderWan = getChosenPeer().wanAddress
@@ -126,8 +137,8 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
             byteData = ByteArray(transferAmount)
             Arrays.fill(
                 byteData,
-                0xAF.toByte()
-            ) // currently data is just the byte 0xAF over and over
+                0x6F.toByte()
+            ) // currently data is just the character "o" over and over
         } else {
             byteData = readCsvToByteArray(chosenVote)
             transferAmount = byteData.size
@@ -185,12 +196,13 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
     private fun setUpReceiver(receiverPort: Int, senderPort: Int) {
         try {
             var transferAmount: Int = 0
-            if (getDemoCommunity().receivedDataSize == 0 || getDemoCommunity().serverWanPort == null) {
+            if (getDemoCommunity().receivedDataSize == 0 || getDemoCommunity().receivedDataSize == null) {
                 throw IllegalArgumentException("Invalid data size received from server")
             } else {
                 transferAmount = getDemoCommunity().receivedDataSize!!
                 setTextToResult("Expecting $transferAmount bytes of data from sender")
             }
+            println(transferAmount)
             appendTextToResult("Starting receiver on port $receiverPort for sender port $senderPort")
 
             // socket is defined by the sender's ip and chosen sender port
@@ -376,10 +388,10 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
                     binding.dataSize.setText("0")
                     getDemoCommunity().senderDataSize = 0
                 } else {
+                    binding.dataSize.isEnabled = false
                     val dataSize = readCsvToByteArray(chosenVote).size
                     getDemoCommunity().senderDataSize = dataSize
-                    binding.dataSize.setText((dataSize / 1024).toString())
-                    binding.dataSize.isEnabled = false
+                    binding.dataSize.setText((dataSize / 1024) + 1)
                 }
 
             }

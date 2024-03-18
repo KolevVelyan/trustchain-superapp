@@ -1,16 +1,14 @@
 package nl.tudelft.trustchain.common.messaging
 
 import nl.tudelft.ipv8.messaging.Deserializable
-import nl.tudelft.ipv8.messaging.SERIALIZED_UINT_SIZE
+import nl.tudelft.ipv8.messaging.SERIALIZED_LONG_SIZE
 import nl.tudelft.ipv8.messaging.Serializable
-import nl.tudelft.ipv8.messaging.deserializeUInt
-import nl.tudelft.ipv8.messaging.deserializeUShort
-import nl.tudelft.ipv8.messaging.serializeUInt
-import nl.tudelft.ipv8.messaging.serializeUShort
+import nl.tudelft.ipv8.messaging.deserializeLong
+import nl.tudelft.ipv8.messaging.serializeLong
 
 class OpenPortPayload(val port: Int, var dataSize: Int = 0): Serializable {
     override fun serialize(): ByteArray {
-        return serializeUInt(port.toUInt()) + serializeUInt(dataSize.toUInt())
+        return serializeLong(port.toLong()) + serializeLong(dataSize.toLong())
     }
 
     companion object Deserializer : Deserializable<OpenPortPayload> {
@@ -20,10 +18,10 @@ class OpenPortPayload(val port: Int, var dataSize: Int = 0): Serializable {
         ): Pair<OpenPortPayload, Int> {
             var localOffset = offset
 
-            val port = deserializeUInt(buffer, localOffset)
-            localOffset += SERIALIZED_UINT_SIZE
-            val dataSize = deserializeUInt(buffer, localOffset)
-            localOffset += SERIALIZED_UINT_SIZE
+            val port = deserializeLong(buffer, localOffset)
+            localOffset += SERIALIZED_LONG_SIZE
+            val dataSize = deserializeLong(buffer, localOffset)
+            localOffset += SERIALIZED_LONG_SIZE
 
             return Pair(OpenPortPayload(port.toInt(), dataSize.toInt()), localOffset)
         }
