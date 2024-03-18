@@ -416,7 +416,6 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
     private fun updateView() {
         updateAvailablePeers()
         updateVoteFiles()
-        binding.txtResult.text = getDemoCommunity().senderDataSize.toString()
-//        binding.txtResult.text = "Available Peers: ${availablePeers.keys} \nData Size: ${binding.dataSize.text} \nChosen Peer: $chosenPeer"
+ //        binding.txtResult.text = "Available Peers: ${availablePeers.keys} \nData Size: ${binding.dataSize.text} \nChosen Peer: $chosenPeer"
     }
 }
