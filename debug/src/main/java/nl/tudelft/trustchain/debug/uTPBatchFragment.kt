@@ -34,9 +34,7 @@ import java.net.Socket
 import java.nio.ByteBuffer
 import java.util.Arrays
 import java.util.Date
-import nl.tudelft.trustchain.common.messaging.OpenPortPayload
-import nl.tudelft.ipv8.Community
-import java.net.DatagramPacket
+import java.time.Duration
 
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -164,6 +162,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
                 acceptFuture.block()
 
                 appendTextToResult("Client has connected to server")
+                val startTime = LocalDateTime.now()
                 val channel = acceptFuture.channel
 
                 // send data on newly established channel (with client/receiver)
@@ -171,7 +170,8 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
                 out.put(byteData)
                 val fut = channel.write(out)
                 fut.block() // block until all data is sent
-                appendTextToResult("Sent all $transferAmount bytes of data")
+                val timeStats = calculateTimeStats(startTime, transferAmount)
+                appendTextToResult("Sent all $transferAmount bytes of data in $timeStats")
 
                 channel.close()
                 server.close()
@@ -219,6 +219,8 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
 
             val cFut = channel.connect(socket) // connect to server/sender
             cFut.block() // block until connection is established
+
+            val startTime = LocalDateTime.now()
             appendTextToResult("Connected to sender")
 
             // Allocate space in buffer and start receiving
@@ -232,7 +234,8 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
             // Convert the buffer to a byte array
             val data = ByteArray(buffer.remaining())
             buffer.get(data)
-            appendTextToResult("Received all ${data.size} bytes of data")
+            val timeStats = calculateTimeStats(startTime, transferAmount)
+            appendTextToResult("Received all ${data.size/1024} Kb of data in $timeStats")
 
 
 
@@ -298,6 +301,22 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         val currentTime = LocalDateTime.now()
         val formattedTime = currentTime.format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS"))
         binding.txtResult.text = oldText + formattedTime + " | " + text
+    }
+
+    private fun calculateTimeStats(startTime: LocalDateTime, dataAmount: Int): String {
+        val endTime = LocalDateTime.now()
+        val duration: Duration = Duration.between(startTime, endTime)
+
+        // calculate time stats
+        val miliseconds: Long = duration.toMillis() % 1000
+        val seconds: Long = duration.getSeconds() % 60
+        val minutes: Long = duration.toMinutes() % 60
+
+        // speed in Kb per second
+        val speed: Double = (dataAmount / 1024).toDouble() / (duration.toMillis() / 1000).toDouble()
+
+        val result = "$minutes:$seconds.$miliseconds | Speed: $speed Kb/s"
+        return result
     }
 
     private fun updateAvailablePeers()  {
