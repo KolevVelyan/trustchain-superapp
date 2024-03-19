@@ -155,11 +155,11 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
                 server.bind(socket)
 
                 appendTextToResult("Server bound to socket")
-
                 // wait until someone connects to server and get new channel
                 val acceptFuture = server.accept()
                 appendTextToResult("Waiting for client to connect")
                 acceptFuture.block()
+
 
                 appendTextToResult("Client has connected to server")
                 val startTime = LocalDateTime.now()
@@ -171,7 +171,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
                 val fut = channel.write(out)
                 fut.block() // block until all data is sent
                 val timeStats = calculateTimeStats(startTime, transferAmount)
-                appendTextToResult("Sent all $transferAmount bytes of data in $timeStats")
+                appendTextToResult("Sent all ${transferAmount/1024} Kb of data in $timeStats")
 
                 channel.close()
                 server.close()
