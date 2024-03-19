@@ -313,9 +313,13 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         val minutes: Long = duration.toMinutes() % 60
 
         // speed in Kb per second
-        val speed: Double = (dataAmount / 1024).toDouble() / (duration.toMillis() / 1000).toDouble()
+        var speed: Double = (dataAmount / 1024).toDouble() / (duration.toMillis() / 1000).toDouble()
 
-        val result = "$minutes:$seconds.$miliseconds | Speed: $speed Kb/s"
+        if (speed.isInfinite()) {
+            speed = 10000.0; // 10 Mb/s
+        }
+
+        val result = "$minutes:$seconds.$miliseconds (${String.format("%.3f", speed)} Kb/s)"
         return result
     }
 
