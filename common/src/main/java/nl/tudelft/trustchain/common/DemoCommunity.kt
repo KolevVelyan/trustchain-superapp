@@ -7,13 +7,18 @@ import nl.tudelft.ipv8.Peer
 import nl.tudelft.ipv8.android.IPv8Android
 import nl.tudelft.ipv8.attestation.trustchain.TrustChainCommunity
 import nl.tudelft.ipv8.messaging.Address
+import nl.tudelft.ipv8.messaging.Deserializable
+import nl.tudelft.ipv8.messaging.EndpointListener
 import nl.tudelft.ipv8.messaging.Packet
+import nl.tudelft.ipv8.messaging.Serializable
 import nl.tudelft.ipv8.messaging.payload.IntroductionResponsePayload
 import nl.tudelft.ipv8.messaging.payload.PuncturePayload
+import nl.tudelft.ipv8.util.hexToBytes
 import nl.tudelft.trustchain.common.messaging.OpenPortPayload
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
+import java.net.SocketAddress
 import java.util.Date
 
 class DemoCommunity : Community() {
@@ -56,6 +61,7 @@ class DemoCommunity : Community() {
         const val PUNCTURE_TEST = 251
         const val OPEN_PORT = 252
         const val OPEN_PORT_RESPONSE = 253
+        const val UTP_RAW_DATA = 69
     }
 
     fun sendPuncture(
@@ -71,9 +77,15 @@ class DemoCommunity : Community() {
         address: IPv4Address,
         portToOpen: Int
     ) {
-        val payload = OpenPortPayload(portToOpen)
-        val packet = serializePacket(MessageId.OPEN_PORT, payload, sign = false)
-        endpoint.send(address, packet)
+        val s = IPv8Socket(this)
+        val d = DatagramPacket("Hello World".toByteArray(), "Hello World".toByteArray().size)
+        val sa = InetAddress.getByName(address.ip)
+        System.out.print(sa);
+        d.address = InetAddress.getByName(address.ip);
+        d.port = address.port;
+
+        System.out.print(portToOpen)
+        s.send(d);
     }
 
     // RECEIVE MESSAGE
@@ -81,6 +93,12 @@ class DemoCommunity : Community() {
         messageHandlers[MessageId.PUNCTURE_TEST] = ::onPunctureTest
         messageHandlers[MessageId.OPEN_PORT] = ::onOpenPort
         messageHandlers[MessageId.OPEN_PORT_RESPONSE] = ::onOpenPortResponse
+        messageHandlers[MessageId.UTP_RAW_DATA] = ::onUTPPacket
+    }
+
+    private fun onUTPPacket(packet:Packet) {
+        System.out.print(packet)
+
     }
 
     private fun onPunctureTest(packet: Packet) {
@@ -119,5 +137,75 @@ class DemoCommunity : Community() {
     private fun onOpenPortResponse(packet: Packet) {
         this.serverWanPort = (packet.source as IPv4Address).port
         this.receivedDataSize = packet.getPayload(OpenPortPayload.Deserializer).dataSize
+    }
+}
+class IPv8Socket(val community: Community) : DatagramSocket(), EndpointListener {
+    val BUFFER_SIZE = 1234;
+//    val myLan: IPv4Address = IPv4Address().;
+    val prefix: ByteArray = ByteArray(0) + Community.PREFIX_IPV8 + Community.VERSION + community.serviceId.hexToBytes();
+    init {
+        val open = super.isClosed();
+        System.out.print(open);
+//        super.setSendBufferSize(BUFFER_SIZE);
+        community.endpoint.addListener(this)
+    }
+
+    override fun bind(addr: SocketAddress?) {}
+
+    override fun receive(p: DatagramPacket?) {
+        super.receive(p)
+    }
+
+    override fun send(p: DatagramPacket?) {
+        if (p == null)
+            throw Error("Sorry, I cannot send without a packet")
+
+        val source = p.address.toString().replace("/", "")
+
+        val address : IPv4Address = IPv4Address(source, p.port)
+        val payload : UTPPayload = UTPPayload(p);
+
+        val data = community.serializePacket(DemoCommunity.MessageId.UTP_RAW_DATA, payload, sign = false)
+        community.endpoint.send(address, data);
+    }
+
+    override fun onPacket(packet: Packet) {
+        val sourceAddress = packet.source
+        val data = packet.data
+
+        val probablePeer = community.network.getVerifiedByAddress(sourceAddress)
+        if (probablePeer != null) {
+            probablePeer.lastResponse = Date()
+        }
+
+        val packetPrefix = data.copyOfRange(0, this.prefix.size)
+        if (!packetPrefix.contentEquals(prefix)) {
+            // logger.debug("prefix not matching")
+            return
+        }
+
+        val msgId = data[prefix.size].toUByte().toInt()
+
+        if(msgId == DemoCommunity.MessageId.UTP_RAW_DATA){
+            val payload = packet.getPayload(UTPPayload.Deserializer)
+
+            receive(payload.payload)
+        }
+    }
+
+    override fun onEstimatedLanChanged(address: IPv4Address) {}
+}
+
+data class UTPPayload(
+    val payload: DatagramPacket,
+) : Serializable {
+    override fun serialize(): ByteArray {
+        return payload.data
+    }
+
+    companion object Deserializer : Deserializable<UTPPayload> {
+        override fun deserialize(buffer: ByteArray, offset: Int): Pair<UTPPayload, Int> {
+            return Pair(UTPPayload(DatagramPacket(buffer.copyOfRange(offset,buffer.size), buffer.size - offset)), buffer.size);
+        }
     }
 }
