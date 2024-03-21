@@ -75,7 +75,7 @@ dependencies {
     implementation(project(':ipv8')) {
         exclude module: 'lazysodium-java'
     }
-    implementation 'com.github.kolevvelyan:utp4j:f0f6c33e0515c00f6c8d5beb661ae9ea76462313'
+    implementation 'com.github.kolevvelyan:utp4j:fa8b20b1f7e73250e5d9eddb9670ed37ee374550'
 
 }
 

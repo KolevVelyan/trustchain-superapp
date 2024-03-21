@@ -1,6 +1,5 @@
 package nl.tudelft.trustchain.debug
 
-import android.R.attr.port
 import android.content.Context
 import android.os.Bundle
 import android.os.StrictMode
@@ -21,7 +20,7 @@ import net.utp4j.channels.UtpSocketState.CLOSED
 import net.utp4j.channels.impl.UtpSocketChannelImpl
 import nl.tudelft.ipv8.IPv4Address
 import nl.tudelft.ipv8.Peer
-import nl.tudelft.trustchain.common.DemoCommunity
+import nl.tudelft.trustchain.common.IPv8Socket
 import nl.tudelft.trustchain.common.ui.BaseFragment
 import nl.tudelft.trustchain.common.util.viewBinding
 import nl.tudelft.trustchain.debug.databinding.FragmentUtpbatchBinding
@@ -30,17 +29,10 @@ import java.io.IOException
 import java.net.DatagramSocket
 import java.net.InetAddress
 import java.net.InetSocketAddress
-import java.net.Socket
 import java.nio.ByteBuffer
-import java.util.Arrays
-import java.util.Date
-import nl.tudelft.trustchain.common.messaging.OpenPortPayload
-import nl.tudelft.ipv8.Community
-import java.net.DatagramPacket
-
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-
+import java.util.Arrays
 
 class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
     private val binding by viewBinding(FragmentUtpbatchBinding::bind)
@@ -154,6 +146,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
             try {
                 // socket is defined by the sender's ip and chosen port
                 val server = UtpServerSocketChannel.open()
+                server.socket = IPv8Socket(getDemoCommunity())
                 server.bind(socket)
 
                 appendTextToResult("Server bound to socket")
