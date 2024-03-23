@@ -1,6 +1,5 @@
 package nl.tudelft.trustchain.debug
 
-import android.R.attr.port
 import android.content.Context
 import android.os.Bundle
 import android.os.StrictMode
@@ -12,6 +11,7 @@ import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
 import android.widget.Toast
 import androidx.core.widget.doOnTextChanged
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -21,7 +21,7 @@ import net.utp4j.channels.UtpSocketState.CLOSED
 import net.utp4j.channels.impl.UtpSocketChannelImpl
 import nl.tudelft.ipv8.IPv4Address
 import nl.tudelft.ipv8.Peer
-import nl.tudelft.trustchain.common.DemoCommunity
+import nl.tudelft.trustchain.common.OnOpenPortResponseListener
 import nl.tudelft.trustchain.common.ui.BaseFragment
 import nl.tudelft.trustchain.common.util.viewBinding
 import nl.tudelft.trustchain.debug.databinding.FragmentUtpbatchBinding
@@ -30,10 +30,8 @@ import java.io.IOException
 import java.net.DatagramSocket
 import java.net.InetAddress
 import java.net.InetSocketAddress
-import java.net.Socket
 import java.nio.ByteBuffer
 import java.util.Arrays
-import java.util.Date
 import java.time.Duration
 
 import java.time.LocalDateTime
@@ -42,6 +40,8 @@ import java.time.format.DateTimeFormatter
 
 class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
     private val binding by viewBinding(FragmentUtpbatchBinding::bind)
+
+    private var receiver: ReceiveUTP? = null
 
     private val CUSTOM_DATA_SIZE = "Custom Data Size"
 
@@ -56,6 +56,9 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         savedInstanceState: Bundle?
     ) {
         super.onViewCreated(view, savedInstanceState)
+
+        receiver = ReceiveUTP(activity, this)
+        getDemoCommunity().addListener(receiver!!)
 
         updateAvailablePeers()
 
@@ -90,19 +93,6 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
                 val senderPort: Int = 8093
                 val senderWan = getChosenPeer().wanAddress
                 puncturePortOfSender(senderWan, senderPort)
-            }
-        }
-
-        binding.btnReceive.setOnClickListener {
-           if (sendReceiveValidateInput(false)) {
-               do {
-               } while (getDemoCommunity().serverWanPort == null)
-
-               val receiverPort: Int = 9999
-               val senderPort: Int = getDemoCommunity().serverWanPort!!
-
-               setUpReceiver(receiverPort, senderPort)
-
             }
         }
 
@@ -187,70 +177,6 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         }
     }
 
-    private fun setUpReceiver(receiverPort: Int, senderPort: Int) {
-        try {
-            var transferAmount: Int = 0
-            if (getDemoCommunity().receivedDataSize == 0 || getDemoCommunity().receivedDataSize == null) {
-                throw IllegalArgumentException("Invalid data size received from server")
-            } else {
-                transferAmount = getDemoCommunity().receivedDataSize!!
-                setTextToResult("Expecting $transferAmount bytes of data from sender")
-            }
-            appendTextToResult("Starting receiver on port $receiverPort for sender port $senderPort")
-
-            // socket is defined by the sender's ip and chosen sender port
-            val socket = InetSocketAddress(InetAddress.getByName(getChosenPeer().wanAddress.ip), senderPort)
-
-            appendTextToResult("Socket of sender (${socket.toString()}) set up")
-
-
-            // instantiate client to receive data
-            val c = UtpSocketChannelImpl()
-            try {
-                c.dgSocket = DatagramSocket(receiverPort)
-                c.state = CLOSED
-            } catch (exp: IOException) {
-                throw IOException("Could not open UtpSocketChannel: ${exp.message}")
-            }
-            val channel: UtpSocketChannel = c
-            appendTextToResult("Channel set up on port $receiverPort")
-
-
-
-            val cFut = channel.connect(socket) // connect to server/sender
-            cFut.block() // block until connection is established
-
-            val startTime = LocalDateTime.now()
-            appendTextToResult("Connected to sender")
-
-            // Allocate space in buffer and start receiving
-            val buffer = ByteBuffer.allocate(transferAmount)
-            val readFuture = channel.read(buffer)
-            readFuture.block() // block until all data is received
-
-            // Rewind the buffer to make sure you're reading from the beginning
-            buffer.rewind()
-
-            // Convert the buffer to a byte array
-            val data = ByteArray(buffer.remaining())
-            buffer.get(data)
-            val timeStats = calculateTimeStats(startTime, transferAmount)
-            appendTextToResult("Received all ${data.size/1024} Kb of data in $timeStats")
-
-
-
-            val utf8String: String = String(data, Charsets.UTF_8)
-            appendTextToResult("Received data: \n${convertDataToUTF8(data)}")
-
-            channel.close()
-            appendTextToResult("Channel closed")
-
-        } catch (e: Exception) {
-            e.printStackTrace(System.err)
-            appendTextToResult("Error: ${e.message}")
-        }
-    }
-
     private fun sendReceiveValidateInput(includeData: Boolean = true): Boolean {
         val context: Context = requireContext()
 
@@ -286,6 +212,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
 
     private fun convertDataToUTF8(data: ByteArray): String {
         val utf8String = String(data, Charsets.UTF_8)
+
         return if (utf8String.length > 1000) utf8String.substring(0, 1000) else utf8String
     }
 
@@ -416,4 +343,116 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         updateVoteFiles()
  //        binding.txtResult.text = "Available Peers: ${availablePeers.keys} \nData Size: ${binding.dataSize.text} \nChosen Peer: $chosenPeer"
     }
+
+    class ReceiveUTP(
+        val activity: FragmentActivity?,
+        val uTPBatchFragment: uTPBatchFragment
+    ) : OnOpenPortResponseListener {
+
+        var isReceiving: Boolean = false
+
+
+
+        override fun onOpenPortResponse(source: IPv4Address, dataSize: Int?) {
+            try{
+                receiveData(source, dataSize)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
+        }
+
+        private fun receiveData(source: IPv4Address, dataSize: Int?) {
+            if (isReceiving) {
+                return
+            }
+
+            isReceiving = true
+
+            try {
+                if (uTPBatchFragment.sendReceiveValidateInput(false)) {
+                    val receiverPort: Int = 9999
+                    val senderPort: Int = source.port
+
+                    setUpReceiver(receiverPort, source, dataSize)
+
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                isReceiving = false
+            }
+
+        }
+
+        private fun setUpReceiver(receiverPort: Int, sender: IPv4Address, dataSize: Int?) {
+            try {
+                if (dataSize == 0 || dataSize == null) {
+                    throw IllegalArgumentException("Invalid data size received from server")
+                }
+
+                // socket is defined by the sender's ip and chosen sender port
+                val socket = InetSocketAddress(InetAddress.getByName(sender.ip), sender.port)
+
+                // instantiate client to receive data
+                val c = UtpSocketChannelImpl()
+                try {
+                    c.dgSocket = DatagramSocket(receiverPort)
+                    c.state = CLOSED
+                } catch (exp: IOException) {
+                    throw IOException("Could not open UtpSocketChannel: ${exp.message}")
+                }
+                val channel: UtpSocketChannel = c
+                activity?.runOnUiThread {
+                    uTPBatchFragment.appendTextToResult("Starting receiver on port $receiverPort for sender port ${sender.port}")
+                }
+
+
+                val cFut = channel.connect(socket) // connect to server/sender
+                cFut.block() // block until connection is established
+
+                val startTime = LocalDateTime.now()
+                activity?.runOnUiThread {
+                    uTPBatchFragment.appendTextToResult("Connected to sender (${socket.toString()})")
+                }
+
+                // Allocate space in buffer and start receiving
+                val buffer = ByteBuffer.allocate(dataSize)
+                val readFuture = channel.read(buffer)
+                readFuture.block() // block until all data is received
+
+                // Rewind the buffer to make sure you're reading from the beginning
+                buffer.rewind()
+
+                // Convert the buffer to a byte array
+                val data = ByteArray(buffer.remaining())
+                buffer.get(data)
+                val timeStats = uTPBatchFragment.calculateTimeStats(startTime, dataSize)
+                activity?.runOnUiThread {
+                    uTPBatchFragment.appendTextToResult("Received all ${data.size/1024} Kb of data in $timeStats")
+                }
+
+
+
+                activity?.runOnUiThread {
+                    uTPBatchFragment.appendTextToResult("Received data: \n${uTPBatchFragment.convertDataToUTF8(data)}")
+                }
+
+                channel.close()
+                activity?.runOnUiThread {
+                    uTPBatchFragment.appendTextToResult("Channel closed")
+                }
+
+            } catch (e: Exception) {
+                e.printStackTrace(System.err)
+                activity?.runOnUiThread {
+                    uTPBatchFragment.appendTextToResult("Error: ${e.message}")
+                }
+            }
+        }
+
+
+    }
 }
+
+

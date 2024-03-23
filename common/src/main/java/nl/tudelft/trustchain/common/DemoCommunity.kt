@@ -1,5 +1,6 @@
 package nl.tudelft.trustchain.common
 
+import android.widget.Toast
 import kotlinx.coroutines.flow.MutableSharedFlow
 import nl.tudelft.ipv8.Community
 import nl.tudelft.ipv8.IPv4Address
@@ -28,6 +29,8 @@ class DemoCommunity : Community() {
     var serverWanPort: Int? = null
     var senderDataSize: Int? = null
     var receivedDataSize: Int? = null
+
+    private val listeners = mutableListOf<OnOpenPortResponseListener>()
 
     // Retrieve the trustchain community
     private fun getTrustChainCommunity(): TrustChainCommunity {
@@ -119,5 +122,20 @@ class DemoCommunity : Community() {
     private fun onOpenPortResponse(packet: Packet) {
         this.serverWanPort = (packet.source as IPv4Address).port
         this.receivedDataSize = packet.getPayload(OpenPortPayload.Deserializer).dataSize
+
+        listeners.forEach { it.onOpenPortResponse(packet.source as IPv4Address, packet.getPayload(OpenPortPayload.Deserializer).dataSize) }
     }
+
+    fun addListener(listener: OnOpenPortResponseListener) {
+        listeners.add(listener)
+    }
+
+    fun removeListener(listener: OnOpenPortResponseListener) {
+        listeners.remove(listener)
+    }
+}
+
+interface OnOpenPortResponseListener {
+    fun onOpenPortResponse(source: IPv4Address, dataSize: Int?)
+
 }
