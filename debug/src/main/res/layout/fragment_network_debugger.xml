@@ -99,11 +99,13 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"/>
 
+
             <ListView
                 android:id="@+id/outgoing_peer_connection_list_view"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"/>
+
         </TableRow>
 
     </TableLayout>

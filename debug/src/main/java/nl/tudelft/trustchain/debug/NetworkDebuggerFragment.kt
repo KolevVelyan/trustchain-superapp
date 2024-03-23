@@ -22,8 +22,6 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
 
     private var peerList: List<Peer> = emptyList()
 
-    private var incomingPeerAdapter: PeerListAdapter? = null
-
     override fun onViewCreated(
         view: View,
         savedInstanceState: Bundle?
@@ -59,6 +57,6 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
         binding.wanAddress.text = demo.myEstimatedWan.toString()
         binding.connectionType.text = demo.network.wanLog
             .estimateConnectionType().value
-        binding.peerId.text = ipv8.myPeer.getSplitMID()
+        binding.peerId.text = PeerListAdapter.getSplitMID(ipv8.myPeer.mid)
     }
 }

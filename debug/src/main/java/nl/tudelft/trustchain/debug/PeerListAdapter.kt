@@ -42,7 +42,7 @@ class PeerListAdapter(
             holder = convertView.tag as ViewHolder
         }
         val peer: Peer? = getItem(position)
-        holder.mPeerId!!.text = peer?.getSplitMID()
+        holder.mPeerId!!.text = getSplitMID(peer?.mid!!)
 //         temporary fix
         holder.mStatusIndicator!!.setTextColor(Color.GREEN)
 
@@ -86,5 +86,12 @@ class PeerListAdapter(
         var mStatusIndicator: TextView? = null
         var mReceivedIndicator: TextView? = null
         var mSentIndicator: TextView? = null
+    }
+
+    companion object {
+        fun getSplitMID(mid: String): String {
+            return mid.substring(0, mid.length / 2) +
+                "\n" + mid.substring(mid.length / 2)
+        }
     }
 }
