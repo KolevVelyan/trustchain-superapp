@@ -119,13 +119,6 @@ class DemoCommunity : Community() {
         }
     }
 
-    private fun onOpenPortResponse(packet: Packet) {
-        this.serverWanPort = (packet.source as IPv4Address).port
-        this.receivedDataSize = packet.getPayload(OpenPortPayload.Deserializer).dataSize
-
-        listeners.forEach { it.onOpenPortResponse(packet.source as IPv4Address, packet.getPayload(OpenPortPayload.Deserializer).dataSize) }
-    }
-
     fun addListener(listener: OnOpenPortResponseListener) {
         listeners.add(listener)
     }
@@ -133,6 +126,14 @@ class DemoCommunity : Community() {
     fun removeListener(listener: OnOpenPortResponseListener) {
         listeners.remove(listener)
     }
+
+    private fun onOpenPortResponse(packet: Packet) {
+        this.serverWanPort = (packet.source as IPv4Address).port
+        this.receivedDataSize = packet.getPayload(OpenPortPayload.Deserializer).dataSize
+
+        listeners.forEach { it.onOpenPortResponse(packet.source as IPv4Address, packet.getPayload(OpenPortPayload.Deserializer).dataSize) }
+    }
+
 }
 
 interface OnOpenPortResponseListener {

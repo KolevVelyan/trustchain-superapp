@@ -385,8 +385,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
 
             try {
                 if (uTPBatchFragment.sendReceiveValidateInput(false)) {
-                    val receiverPort: Int = 9999
-                    setUpReceiver(receiverPort, source, dataSize)
+                    setUpReceiver(source, dataSize)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -396,7 +395,8 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
 
         }
 
-        private fun setUpReceiver(receiverPort: Int, sender: IPv4Address, dataSize: Int?) {
+        private fun setUpReceiver(sender: IPv4Address, dataSize: Int?) {
+            val receiverPort: Int = 9999
             try {
                 if (dataSize == 0 || dataSize == null) {
                     throw IllegalArgumentException("Invalid data size received from sender")
@@ -442,8 +442,6 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
                 activity?.runOnUiThread {
                     uTPBatchFragment.appendTextToResult("Received all ${data.size/1024} Kb of data in $timeStats")
                 }
-
-
 
                 activity?.runOnUiThread {
                     uTPBatchFragment.appendTextToResult("Received data: \n${uTPBatchFragment.convertDataToUTF8(data)}")
