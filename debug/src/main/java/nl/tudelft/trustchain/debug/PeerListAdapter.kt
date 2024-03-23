@@ -8,6 +8,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import nl.tudelft.ipv8.Peer
 import java.util.Date
 
@@ -43,33 +44,29 @@ class PeerListAdapter(
         }
         val peer: Peer? = getItem(position)
         holder.mPeerId!!.text = getSplitMID(peer?.mid!!)
-//         temporary fix
-        holder.mStatusIndicator!!.setTextColor(Color.GREEN)
-
-//        if (peer.hasReceivedData()) {
-//            if (peer.isAlive()) {
-//                holder.mStatusIndicator!!.setTextColor(context.resources.getColor(R.color.colorStatusConnected))
-//            } else {
-//                holder.mStatusIndicator!!.setTextColor(context.resources.getColor(R.color.colorStatusCantConnect))
-//            }
-//        } else {
-//            if (peer.isAlive()) {
-//                holder.mStatusIndicator!!.setTextColor(context.resources.getColor(R.color.colorStatusConnecting))
-//            } else {
-//                holder.mStatusIndicator!!.setTextColor(context.resources.getColor(R.color.colorStatusCantConnect))
-//            }
-//        }
-        holder.mDestinationAddress!!.text = peer?.wanAddress.toString()
-        val lastRequest = peer?.lastRequest
+        holder.mDestinationAddress!!.text = peer.wanAddress.toString()
+        val lastRequest = peer.lastRequest
         if (lastRequest != null) {
             if (Date().time - lastRequest.time < 200) {
                 animate(holder.mSentIndicator)
             }
+
         }
-        val lastResponse = peer?.lastResponse
+
+        val lastResponse = peer.lastResponse
         if (lastResponse != null) {
-            if (Date().time - lastResponse.time < 200) {
+            val milisecSinceLastResponse = Date().time - lastResponse.time
+
+            if (milisecSinceLastResponse < 200) {
                 animate(holder.mReceivedIndicator)
+            }
+
+            if (milisecSinceLastResponse > 20 * 1000) {
+                holder.mStatusIndicator!!.background = ContextCompat.getDrawable(context, R.drawable.peer_indicator_red)
+            } else if (milisecSinceLastResponse > 10 * 1000) {
+                holder.mStatusIndicator!!.background = ContextCompat.getDrawable(context, R.drawable.peer_indicator_yellow)
+            } else {
+                holder.mStatusIndicator!!.background = ContextCompat.getDrawable(context, R.drawable.peer_indicator_green)
             }
         }
         return convertView

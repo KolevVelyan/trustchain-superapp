@@ -13,9 +13,10 @@
         <TableRow>
             <TextView
                 android:id="@+id/status_indicator"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:background="@drawable/peer_indicator_red"/>
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_marginTop="2dp"
+                android:background="@drawable/peer_indicator_green"/>
         </TableRow>
 
         <TableRow>
@@ -38,7 +39,7 @@
                 android:layout_weight="0.5"
                 android:alpha="0"
                 android:text="S"
-                android:textColor="#6ab04c"
+                android:textColor="#D980FA"
                 android:textSize="13sp"
                 android:textStyle="bold" />
         </TableRow>
