@@ -81,7 +81,9 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         }
 
         binding.btnSend.setOnClickListener {
-            if (sendReceiveValidateInput()) {
+            if (receiver!!.isReceiving()) {
+                Toast.makeText(requireContext(), "Cannot send while receiving.", Toast.LENGTH_SHORT).show()
+            } else if (sendReceiveValidateInput()) {
                 val thread = Thread {
                     setUpSender()
                 }
@@ -146,7 +148,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
 
 
                 activity?.runOnUiThread {
-                    appendTextToResult("Socket ${socket.toString()} set up and bound")
+                    setTextToResult("Socket ${socket.toString()} set up and bound")
                 }
                 // wait until someone connects to socket and get new channel
                 val acceptFuture = server.accept()
@@ -363,7 +365,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         val uTPBatchFragment: uTPBatchFragment
     ) : OnOpenPortResponseListener {
 
-        var isReceiving: Boolean = false
+        private var isReceiving: Boolean = false
 
 
 
@@ -415,7 +417,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
                 }
                 val channel: UtpSocketChannel = c
                 activity?.runOnUiThread {
-                    uTPBatchFragment.appendTextToResult("Starting receiver on port $receiverPort for sender port ${sender.port}")
+                    uTPBatchFragment.setTextToResult("Starting receiver on port $receiverPort for sender port ${sender.port}")
                 }
 
 
@@ -459,6 +461,12 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
                 }
             }
         }
+
+        public fun isReceiving(): Boolean {
+            return isReceiving
+        }
+
+
 
 
     }
