@@ -136,6 +136,8 @@ dependencies {
     implementation "app.cash.sqldelight:coroutines-extensions:$sqldelight_version"
     implementation 'com.google.zxing:core:3.4.1'
     testImplementation 'io.mockk:mockk-dsl:1.13.9'
+
+    implementation 'com.github.kolevvelyan:utp4j:fa8b20b1f7e73250e5d9eddb9670ed37ee374550'
 }
 
 

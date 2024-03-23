@@ -21,6 +21,8 @@ import net.utp4j.channels.impl.UtpSocketChannelImpl
 import nl.tudelft.ipv8.IPv4Address
 import nl.tudelft.ipv8.Peer
 import nl.tudelft.trustchain.common.IPv8Socket
+import nl.tudelft.trustchain.common.UTPSender
+import nl.tudelft.trustchain.common.UTPService
 import nl.tudelft.trustchain.common.ui.BaseFragment
 import nl.tudelft.trustchain.common.util.viewBinding
 import nl.tudelft.trustchain.debug.databinding.FragmentUtpbatchBinding
@@ -89,13 +91,13 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
 
         binding.btnReceive.setOnClickListener {
            if (sendReceiveValidateInput(false)) {
-               do {
-               } while (getDemoCommunity().serverWanPort == null)
+//               do {
+//               } while (getDemoCommunity().serverWanPort == null)
+//
+//               val receiverPort: Int = 9999
+//               val senderPort: Int = getDemoCommunity().serverWanPort!!
 
-               val receiverPort: Int = 9999
-               val senderPort: Int = getDemoCommunity().serverWanPort!!
-
-               setUpReceiver(receiverPort, senderPort)
+               setUpReceiver(9999, 1234)
 
             }
         }
@@ -114,131 +116,25 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         getDemoCommunity().openPort(addr, port)
     }
 
-    private fun setUpSender(senderPort: Int) {
-        var transferAmount: Int = 0
-        var byteData: ByteArray = ByteArray(0)
-        if (chosenVote == CUSTOM_DATA_SIZE || chosenVote.isEmpty()) {
-            transferAmount = getDataSize() * 1024
-            // data to send
-            byteData = ByteArray(transferAmount)
-            Arrays.fill(
-                byteData,
-                0x6F.toByte()
-            ) // currently data is just the character "o" over and over
-        } else {
-            byteData = readCsvToByteArray(chosenVote)
-            transferAmount = byteData.size
-        }
+    private fun setUpServer() {
 
+    }
 
-        try {
-            setTextToResult("Starting sender on port $senderPort")
+    private fun setUpSender(receiverPort: Int: Int) {
+        val data = ByteArray(25);
+        val peer = InetSocketAddress(InetAddress.getByName(getChosenPeer().wanAddress.ip), receiverPort)
 
+        val sender = UTPSender(peer, getDemoCommunity())
 
-            // socket is defined by the sender's ip and chosen port
-            val socket = InetSocketAddress(
-                InetAddress.getByName(getDemoCommunity().myEstimatedLan.ip),
-                senderPort
-            )
-            appendTextToResult("Socket ${socket.toString()} set up")
+        sender.send(data)
 
-            // instantiate server to send data (it waits for client to through socket first)
-            try {
-                // socket is defined by the sender's ip and chosen port
-                val server = UtpServerSocketChannel.open()
-                server.socket = IPv8Socket(getDemoCommunity())
-                server.bind(socket)
-
-                appendTextToResult("Server bound to socket")
-
-                // wait until someone connects to server and get new channel
-                val acceptFuture = server.accept()
-                appendTextToResult("Waiting for client to connect")
-                acceptFuture.block()
-
-                appendTextToResult("Client has connected to server")
-                val channel = acceptFuture.channel
-
-                // send data on newly established channel (with client/receiver)
-                val out = ByteBuffer.allocate(transferAmount)
-                out.put(byteData)
-                val fut = channel.write(out)
-                fut.block() // block until all data is sent
-                appendTextToResult("Sent all $transferAmount bytes of data")
-
-                channel.close()
-                server.close()
-                appendTextToResult("Channel and server closed")
-
-            } catch (e: java.lang.Exception) {
-                e.printStackTrace(System.err)
-                appendTextToResult("Error: ${e.message}")
-            }
-        } catch (e: java.lang.Exception) {
-            e.printStackTrace(System.err)
-            appendTextToResult("Error: ${e.message}")
-        }
     }
 
     private fun setUpReceiver(receiverPort: Int, senderPort: Int) {
-        try {
-            var transferAmount: Int = 0
-            if (getDemoCommunity().receivedDataSize == 0 || getDemoCommunity().receivedDataSize == null) {
-                throw IllegalArgumentException("Invalid data size received from server")
-            } else {
-                transferAmount = getDemoCommunity().receivedDataSize!!
-                setTextToResult("Expecting $transferAmount bytes of data from sender")
-            }
-            appendTextToResult("Starting receiver on port $receiverPort for sender port $senderPort")
+        val address = InetSocketAddress(1234)
 
-            // socket is defined by the sender's ip and chosen sender port
-            val socket = InetSocketAddress(InetAddress.getByName(getChosenPeer().wanAddress.ip), senderPort)
-
-            appendTextToResult("Socket of sender (${socket.toString()}) set up")
-
-
-            // instantiate client to receive data
-            val c = UtpSocketChannelImpl()
-            try {
-                c.dgSocket = DatagramSocket(receiverPort)
-                c.state = CLOSED
-            } catch (exp: IOException) {
-                throw IOException("Could not open UtpSocketChannel: ${exp.message}")
-            }
-            val channel: UtpSocketChannel = c
-            appendTextToResult("Channel set up on port $receiverPort")
-
-
-
-            val cFut = channel.connect(socket) // connect to server/sender
-            cFut.block() // block until connection is established
-            appendTextToResult("Connected to sender")
-
-            // Allocate space in buffer and start receiving
-            val buffer = ByteBuffer.allocate(transferAmount)
-            val readFuture = channel.read(buffer)
-            readFuture.block() // block until all data is received
-
-            // Rewind the buffer to make sure you're reading from the beginning
-            buffer.rewind()
-
-            // Convert the buffer to a byte array
-            val data = ByteArray(buffer.remaining())
-            buffer.get(data)
-            appendTextToResult("Received all ${data.size} bytes of data")
-
-
-
-            val utf8String: String = String(data, Charsets.UTF_8)
-            appendTextToResult("Received data: \n${convertDataToUTF8(data)}")
-
-            channel.close()
-            appendTextToResult("Channel closed")
-
-        } catch (e: Exception) {
-            e.printStackTrace(System.err)
-            appendTextToResult("Error: ${e.message}")
-        }
+        val server = UTPService(address, getDemoCommunity());
+        server.start()
     }
 
     private fun sendReceiveValidateInput(includeData: Boolean = true): Boolean {

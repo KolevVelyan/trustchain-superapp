@@ -10,9 +10,13 @@ import nl.tudelft.ipv8.messaging.Address
 import nl.tudelft.ipv8.messaging.Deserializable
 import nl.tudelft.ipv8.messaging.EndpointListener
 import nl.tudelft.ipv8.messaging.Packet
+import nl.tudelft.ipv8.messaging.SERIALIZED_UINT_SIZE
 import nl.tudelft.ipv8.messaging.Serializable
+import nl.tudelft.ipv8.messaging.deserializeRaw
+import nl.tudelft.ipv8.messaging.deserializeUInt
 import nl.tudelft.ipv8.messaging.payload.IntroductionResponsePayload
 import nl.tudelft.ipv8.messaging.payload.PuncturePayload
+import nl.tudelft.ipv8.messaging.serializeUInt
 import nl.tudelft.ipv8.util.hexToBytes
 import nl.tudelft.trustchain.common.messaging.OpenPortPayload
 import java.net.DatagramPacket
@@ -96,7 +100,7 @@ class DemoCommunity : Community() {
         messageHandlers[MessageId.UTP_RAW_DATA] = ::onUTPPacket
     }
 
-    private fun onUTPPacket(packet:Packet) {
+    private fun onUTPPacket(packet: Packet) {
         System.out.print(packet)
 
     }
@@ -139,18 +143,27 @@ class DemoCommunity : Community() {
         this.receivedDataSize = packet.getPayload(OpenPortPayload.Deserializer).dataSize
     }
 }
+
 class IPv8Socket(val community: Community) : DatagramSocket(), EndpointListener {
     val BUFFER_SIZE = 1234;
-//    val myLan: IPv4Address = IPv4Address().;
-    val prefix: ByteArray = ByteArray(0) + Community.PREFIX_IPV8 + Community.VERSION + community.serviceId.hexToBytes();
+
+    //    val myLan: IPv4Address = IPv4Address().;
+    val prefix: ByteArray =
+        ByteArray(0) + Community.PREFIX_IPV8 + Community.VERSION + community.serviceId.hexToBytes();
+
     init {
-        val open = super.isClosed();
-        System.out.print(open);
-//        super.setSendBufferSize(BUFFER_SIZE);
         community.endpoint.addListener(this)
     }
 
     override fun bind(addr: SocketAddress?) {}
+
+    override fun connect(addr: SocketAddress?) {
+        super.connect(addr)
+    }
+
+    override fun connect(address: InetAddress?, port: Int) {
+        super.connect(address, port)
+    }
 
     override fun receive(p: DatagramPacket?) {
         super.receive(p)
@@ -162,10 +175,11 @@ class IPv8Socket(val community: Community) : DatagramSocket(), EndpointListener 
 
         val source = p.address.toString().replace("/", "")
 
-        val address : IPv4Address = IPv4Address(source, p.port)
-        val payload : UTPPayload = UTPPayload(p);
+        val address: IPv4Address = IPv4Address(source, p.port)
+        val payload: UTPPayload = UTPPayload(p.port.toUInt(), p);
 
-        val data = community.serializePacket(DemoCommunity.MessageId.UTP_RAW_DATA, payload, sign = false)
+        val data =
+            community.serializePacket(DemoCommunity.MessageId.UTP_RAW_DATA, payload, sign = false)
         community.endpoint.send(address, data);
     }
 
@@ -186,7 +200,7 @@ class IPv8Socket(val community: Community) : DatagramSocket(), EndpointListener 
 
         val msgId = data[prefix.size].toUByte().toInt()
 
-        if(msgId == DemoCommunity.MessageId.UTP_RAW_DATA){
+        if (msgId == DemoCommunity.MessageId.UTP_RAW_DATA) {
             val payload = packet.getPayload(UTPPayload.Deserializer)
 
             receive(payload.payload)
@@ -197,15 +211,22 @@ class IPv8Socket(val community: Community) : DatagramSocket(), EndpointListener 
 }
 
 data class UTPPayload(
+    val port: UInt,
     val payload: DatagramPacket,
 ) : Serializable {
     override fun serialize(): ByteArray {
-        return payload.data
+        return serializeUInt(port) + payload.data
     }
 
     companion object Deserializer : Deserializable<UTPPayload> {
         override fun deserialize(buffer: ByteArray, offset: Int): Pair<UTPPayload, Int> {
-            return Pair(UTPPayload(DatagramPacket(buffer.copyOfRange(offset,buffer.size), buffer.size - offset)), buffer.size);
+            var local_offset = 0;
+            val port = deserializeUInt(buffer, local_offset + offset)
+            local_offset += SERIALIZED_UINT_SIZE
+            val (payload, payload_len) = deserializeRaw(buffer, local_offset + offset)
+            local_offset += payload_len + local_offset
+
+            return Pair(UTPPayload(port, DatagramPacket(payload, payload_len)), buffer.size);
         }
     }
 }
