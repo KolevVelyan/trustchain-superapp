@@ -82,9 +82,10 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
 
         binding.btnSend.setOnClickListener {
             if (sendReceiveValidateInput()) {
-                val senderPort: Int = 8093
-
-                setUpSender(senderPort)
+                val thread = Thread {
+                    setUpSender()
+                }
+                thread.start()
             }
         }
 
@@ -105,14 +106,15 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
     }
 
     private fun puncturePortOfSender(addr: IPv4Address, port: Int) {
-        // try to puncture the uTP server port
+        // try to puncture the uTP sender port
         setTextToResult("Puncturing port $port of $addr")
         getDemoCommunity().openPort(addr, port)
     }
 
-    private fun setUpSender(senderPort: Int) {
-        var transferAmount: Int = 0
-        var byteData: ByteArray = ByteArray(0)
+    private fun setUpSender() {
+        val senderPort = 8093
+        var transferAmount: Int
+        var byteData: ByteArray
         if (chosenVote == CUSTOM_DATA_SIZE || chosenVote.isEmpty()) {
             transferAmount = getDataSize() * 1024
             // data to send
@@ -128,30 +130,34 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
 
 
         try {
-            setTextToResult("Starting sender on port $senderPort")
-
-
             // socket is defined by the sender's ip and chosen port
             val socket = InetSocketAddress(
                 InetAddress.getByName(getDemoCommunity().myEstimatedLan.ip),
                 senderPort
             )
-            appendTextToResult("Socket ${socket.toString()} set up")
 
-            // instantiate server to send data (it waits for client to through socket first)
+
+
+            // instantiate socket to send data (it waits for client to through socket first)
             try {
                 // socket is defined by the sender's ip and chosen port
                 val server = UtpServerSocketChannel.open()
                 server.bind(socket)
 
-                appendTextToResult("Server bound to socket")
-                // wait until someone connects to server and get new channel
+
+                activity?.runOnUiThread {
+                    appendTextToResult("Socket ${socket.toString()} set up and bound")
+                }
+                // wait until someone connects to socket and get new channel
                 val acceptFuture = server.accept()
-                appendTextToResult("Waiting for client to connect")
+                activity?.runOnUiThread {
+                    appendTextToResult("Waiting for client to connect...")
+                }
                 acceptFuture.block()
 
-
-                appendTextToResult("Client has connected to server")
+                activity?.runOnUiThread {
+                    appendTextToResult("Client has connected")
+                }
                 val startTime = LocalDateTime.now()
                 val channel = acceptFuture.channel
 
@@ -161,19 +167,27 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
                 val fut = channel.write(out)
                 fut.block() // block until all data is sent
                 val timeStats = calculateTimeStats(startTime, transferAmount)
-                appendTextToResult("Sent all ${transferAmount/1024} Kb of data in $timeStats")
+                activity?.runOnUiThread {
+                    appendTextToResult("Sent all ${transferAmount/1024} Kb of data in $timeStats")
+                }
 
                 channel.close()
                 server.close()
-                appendTextToResult("Channel and server closed")
+                activity?.runOnUiThread {
+                    appendTextToResult("Socket closed")
+                }
 
             } catch (e: java.lang.Exception) {
                 e.printStackTrace(System.err)
-                appendTextToResult("Error: ${e.message}")
+                activity?.runOnUiThread {
+                    appendTextToResult("Error: ${e.message}")
+                }
             }
         } catch (e: java.lang.Exception) {
             e.printStackTrace(System.err)
-            appendTextToResult("Error: ${e.message}")
+            activity?.runOnUiThread {
+                appendTextToResult("Error: ${e.message}")
+            }
         }
     }
 
@@ -372,10 +386,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
             try {
                 if (uTPBatchFragment.sendReceiveValidateInput(false)) {
                     val receiverPort: Int = 9999
-                    val senderPort: Int = source.port
-
                     setUpReceiver(receiverPort, source, dataSize)
-
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -388,7 +399,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         private fun setUpReceiver(receiverPort: Int, sender: IPv4Address, dataSize: Int?) {
             try {
                 if (dataSize == 0 || dataSize == null) {
-                    throw IllegalArgumentException("Invalid data size received from server")
+                    throw IllegalArgumentException("Invalid data size received from sender")
                 }
 
                 // socket is defined by the sender's ip and chosen sender port
@@ -408,7 +419,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
                 }
 
 
-                val cFut = channel.connect(socket) // connect to server/sender
+                val cFut = channel.connect(socket) // connect to sender
                 cFut.block() // block until connection is established
 
                 val startTime = LocalDateTime.now()
