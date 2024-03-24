@@ -145,21 +145,14 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
                 // socket is defined by the sender's ip and chosen port
                 val server = UtpServerSocketChannel.open()
                 server.bind(socket)
+                setTextToResult("Socket ${socket.toString()} set up and bound")
 
-
-                activity?.runOnUiThread {
-                    setTextToResult("Socket ${socket.toString()} set up and bound")
-                }
                 // wait until someone connects to socket and get new channel
                 val acceptFuture = server.accept()
-                activity?.runOnUiThread {
-                    appendTextToResult("Waiting for client to connect...")
-                }
-                acceptFuture.block()
+                appendTextToResult("Waiting for client to connect...")
 
-                activity?.runOnUiThread {
-                    appendTextToResult("Client has connected")
-                }
+                acceptFuture.block()
+                appendTextToResult("Client has connected")
                 val startTime = LocalDateTime.now()
                 val channel = acceptFuture.channel
 
@@ -169,27 +162,19 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
                 val fut = channel.write(out)
                 fut.block() // block until all data is sent
                 val timeStats = calculateTimeStats(startTime, transferAmount)
-                activity?.runOnUiThread {
-                    appendTextToResult("Sent all ${transferAmount/1024} Kb of data in $timeStats")
-                }
+                appendTextToResult("Sent all ${transferAmount/1024} Kb of data in $timeStats")
 
                 channel.close()
                 server.close()
-                activity?.runOnUiThread {
-                    appendTextToResult("Socket closed")
-                }
+                appendTextToResult("Socket closed")
 
             } catch (e: java.lang.Exception) {
                 e.printStackTrace(System.err)
-                activity?.runOnUiThread {
-                    appendTextToResult("Error: ${e.message}")
-                }
+                appendTextToResult("Error: ${e.message}")
             }
         } catch (e: java.lang.Exception) {
             e.printStackTrace(System.err)
-            activity?.runOnUiThread {
-                appendTextToResult("Error: ${e.message}")
-            }
+            appendTextToResult("Error: ${e.message}")
         }
     }
 
@@ -226,18 +211,20 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         return chosenPeer as Peer
     }
 
-    public fun setTextToResult(text: String) {
+    fun setTextToResult(text: String) {
         appendTextToResult(text, false)
     }
 
-    public fun appendTextToResult(text: String, newline: Boolean = true) {
-        var oldText = binding.txtResult.text.toString() + "\n"
-        if (binding.txtResult.text.isEmpty() || !newline) {
-            oldText = ""
+    fun appendTextToResult(text: String, newline: Boolean = true) {
+        activity?.runOnUiThread {
+            var oldText = binding.txtResult.text.toString() + "\n"
+            if (binding.txtResult.text.isEmpty() || !newline) {
+                oldText = ""
+            }
+            val currentTime = LocalDateTime.now()
+            val formattedTime = currentTime.format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS"))
+            binding.txtResult.text = oldText + formattedTime + " | " + text
         }
-        val currentTime = LocalDateTime.now()
-        val formattedTime = currentTime.format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS"))
-        binding.txtResult.text = oldText + formattedTime + " | " + text
     }
 
     private fun calculateTimeStats(startTime: LocalDateTime, dataAmount: Int): String {

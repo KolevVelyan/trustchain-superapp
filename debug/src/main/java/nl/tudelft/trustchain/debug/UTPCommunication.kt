@@ -96,18 +96,14 @@ class UTPReceiver(
                 throw IOException("Could not open UtpSocketChannel: ${exp.message}")
             }
             val channel: UtpSocketChannel = c
-            activity?.runOnUiThread {
-                uTPBatchFragment.setTextToResult("Starting receiver on port $receiverPort for sender port ${sender.port}")
-            }
+            uTPBatchFragment.setTextToResult("Starting receiver on port $receiverPort")
 
 
             val cFut = channel.connect(socket) // connect to sender
             cFut.block() // block until connection is established
 
             val startTime = LocalDateTime.now()
-            activity?.runOnUiThread {
-                uTPBatchFragment.appendTextToResult("Connected to sender (${socket.toString()})")
-            }
+            uTPBatchFragment.appendTextToResult("Connected to sender (${socket.toString()})")
 
             // Allocate space in buffer and start receiving
             val buffer = ByteBuffer.allocate(dataSize)
@@ -121,24 +117,16 @@ class UTPReceiver(
             val data = ByteArray(buffer.remaining())
             buffer.get(data)
             val timeStats = calculateTimeStats(startTime, dataSize)
-            activity?.runOnUiThread {
-                uTPBatchFragment.appendTextToResult("Received all ${data.size/1024} Kb of data in $timeStats")
-            }
+            uTPBatchFragment.appendTextToResult("Received ${data.size/1024} Kb of data in $timeStats")
 
-            activity?.runOnUiThread {
-                uTPBatchFragment.appendTextToResult("Received data: \n${convertDataToUTF8(data)}")
-            }
+            uTPBatchFragment.appendTextToResult("Received data: \n${convertDataToUTF8(data)}")
 
             channel.close()
-            activity?.runOnUiThread {
-                uTPBatchFragment.appendTextToResult("Channel closed")
-            }
+            uTPBatchFragment.appendTextToResult("Channel closed")
 
         } catch (e: Exception) {
             e.printStackTrace(System.err)
-            activity?.runOnUiThread {
-                uTPBatchFragment.appendTextToResult("Error: ${e.message}")
-            }
+            uTPBatchFragment.appendTextToResult("Error: ${e.message}")
         }
     }
 
