@@ -1,7 +1,6 @@
 package nl.tudelft.trustchain.debug
 
-import android.widget.Toast
-import androidx.fragment.app.FragmentActivity
+import net.utp4j.channels.UtpServerSocketChannel
 import net.utp4j.channels.UtpSocketChannel
 import net.utp4j.channels.UtpSocketState
 import net.utp4j.channels.impl.UtpSocketChannelImpl
@@ -45,10 +44,8 @@ open class UTPCommunication {
 
 // Subclass for sending data
 class UTPReceiver(
-    val activity: FragmentActivity?,
-    val uTPBatchFragment: uTPBatchFragment
+    private val uTPBatchFragment: uTPBatchFragment // used for printing on the screen for now
 ) : UTPCommunication(), OnOpenPortResponseListener {
-
     private var isReceiving: Boolean = false
 
     override fun onOpenPortResponse(source: IPv4Address, dataSize: Int?) {
@@ -129,12 +126,58 @@ class UTPReceiver(
             uTPBatchFragment.appendTextToResult("Error: ${e.message}")
         }
     }
-
-    public fun isReceiving(): Boolean {
+    fun isReceiving(): Boolean {
         return isReceiving
     }
+}
 
 
+class UTPSender(
+    private val uTPBatchFragment: uTPBatchFragment // used for printing on the screen for now
+) : UTPCommunication() {
+    fun setUpSender(dataToSend: ByteArray, senderPort: Int, senderIP: String) {
+        try {
+            // socket is defined by the sender's ip and chosen port
+            val socket = InetSocketAddress(
+                InetAddress.getByName(senderIP),
+                senderPort
+            )
 
+            // instantiate socket to send data (it waits for client to through socket first)
+            try {
+                // socket is defined by the sender's ip and chosen port
+                val server = UtpServerSocketChannel.open()
+                server.bind(socket)
+                uTPBatchFragment.setTextToResult("Socket ${socket.toString()} set up and bound")
 
+                // wait until someone connects to socket and get new channel
+                val acceptFuture = server.accept()
+                uTPBatchFragment.appendTextToResult("Waiting for client to connect...")
+
+                acceptFuture.block()
+                uTPBatchFragment.appendTextToResult("Client has connected")
+                val startTime = LocalDateTime.now()
+                val channel = acceptFuture.channel
+
+                // send data on newly established channel (with client/receiver)
+                val out = ByteBuffer.allocate(dataToSend.size)
+                out.put(dataToSend)
+                val fut = channel.write(out)
+                fut.block() // block until all data is sent
+                val timeStats = calculateTimeStats(startTime, dataToSend.size)
+                uTPBatchFragment.appendTextToResult("Sent all ${dataToSend.size/1024} Kb of data in $timeStats")
+
+                channel.close()
+                server.close()
+                uTPBatchFragment.appendTextToResult("Socket closed")
+
+            } catch (e: java.lang.Exception) {
+                e.printStackTrace(System.err)
+                uTPBatchFragment.appendTextToResult("Error: ${e.message}")
+            }
+        } catch (e: java.lang.Exception) {
+            e.printStackTrace(System.err)
+            uTPBatchFragment.appendTextToResult("Error: ${e.message}")
+        }
+    }
 }

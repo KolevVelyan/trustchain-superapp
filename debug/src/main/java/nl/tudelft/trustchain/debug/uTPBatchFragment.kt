@@ -41,6 +41,7 @@ import java.time.format.DateTimeFormatter
 class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
     private val binding by viewBinding(FragmentUtpbatchBinding::bind)
 
+    private var sender: UTPSender? = null
     private var receiver: UTPReceiver? = null
 
     private val CUSTOM_DATA_SIZE = "Custom Data Size"
@@ -57,10 +58,10 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
     ) {
         super.onViewCreated(view, savedInstanceState)
 
-        receiver = UTPReceiver(activity, this)
+        sender = UTPSender(this)
+        receiver = UTPReceiver(this)
         getDemoCommunity().addListener(receiver!!)
 
-        updateAvailablePeers()
 
         val policy = ThreadPolicy.Builder().permitAll().build()
         StrictMode.setThreadPolicy(policy)
@@ -83,18 +84,38 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         binding.btnSend.setOnClickListener {
             if (receiver!!.isReceiving()) {
                 Toast.makeText(requireContext(), "Cannot send while receiving.", Toast.LENGTH_SHORT).show()
-            } else if (sendReceiveValidateInput()) {
+            } else if (validateInput()) {
                 val thread = Thread {
-                    setUpSender()
+                    val senderPort = 8093
+                    val senderIP = getDemoCommunity().myEstimatedWan.ip
+                    val byteData: ByteArray
+
+                    if (chosenVote == CUSTOM_DATA_SIZE || chosenVote.isEmpty()) {
+                        val dataSizeText = binding.dataSize.text.toString()
+
+                        // should not occur if validated beforehand
+                        if (dataSizeText.isEmpty()) throw IllegalArgumentException("invalid data size")
+
+                        byteData = ByteArray(dataSizeText.toInt() * 1024)
+                        Arrays.fill(
+                            byteData,
+                            0x6F.toByte()
+                        ) // currently data is just the character "o" over and over
+                    } else {
+                        byteData = readCsvToByteArray(chosenVote)
+                    }
+
+                    sender?.setUpSender(byteData, senderPort, senderIP)
                 }
                 thread.start()
             }
         }
 
         binding.btnConnect.setOnClickListener {
-            if (sendReceiveValidateInput(false)) {
+            if (validateInput(false)) {
                 val senderPort: Int = 8093
-                val senderWan = getChosenPeer().wanAddress
+                val peerToPuncture = chosenPeer ?: throw IllegalArgumentException("invalid peer")
+                val senderWan = peerToPuncture.wanAddress
                 puncturePortOfSender(senderWan, senderPort)
             }
         }
@@ -113,72 +134,9 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         getDemoCommunity().openPort(addr, port)
     }
 
-    private fun setUpSender() {
-        val senderPort = 8093
-        var transferAmount: Int
-        var byteData: ByteArray
-        if (chosenVote == CUSTOM_DATA_SIZE || chosenVote.isEmpty()) {
-            transferAmount = getDataSize() * 1024
-            // data to send
-            byteData = ByteArray(transferAmount)
-            Arrays.fill(
-                byteData,
-                0x6F.toByte()
-            ) // currently data is just the character "o" over and over
-        } else {
-            byteData = readCsvToByteArray(chosenVote)
-            transferAmount = byteData.size
-        }
 
 
-        try {
-            // socket is defined by the sender's ip and chosen port
-            val socket = InetSocketAddress(
-                InetAddress.getByName(getDemoCommunity().myEstimatedLan.ip),
-                senderPort
-            )
-
-
-
-            // instantiate socket to send data (it waits for client to through socket first)
-            try {
-                // socket is defined by the sender's ip and chosen port
-                val server = UtpServerSocketChannel.open()
-                server.bind(socket)
-                setTextToResult("Socket ${socket.toString()} set up and bound")
-
-                // wait until someone connects to socket and get new channel
-                val acceptFuture = server.accept()
-                appendTextToResult("Waiting for client to connect...")
-
-                acceptFuture.block()
-                appendTextToResult("Client has connected")
-                val startTime = LocalDateTime.now()
-                val channel = acceptFuture.channel
-
-                // send data on newly established channel (with client/receiver)
-                val out = ByteBuffer.allocate(transferAmount)
-                out.put(byteData)
-                val fut = channel.write(out)
-                fut.block() // block until all data is sent
-                val timeStats = calculateTimeStats(startTime, transferAmount)
-                appendTextToResult("Sent all ${transferAmount/1024} Kb of data in $timeStats")
-
-                channel.close()
-                server.close()
-                appendTextToResult("Socket closed")
-
-            } catch (e: java.lang.Exception) {
-                e.printStackTrace(System.err)
-                appendTextToResult("Error: ${e.message}")
-            }
-        } catch (e: java.lang.Exception) {
-            e.printStackTrace(System.err)
-            appendTextToResult("Error: ${e.message}")
-        }
-    }
-
-    private fun sendReceiveValidateInput(includeData: Boolean = true): Boolean {
+    private fun validateInput(includeData: Boolean = true): Boolean {
         val context: Context = requireContext()
 
 
@@ -195,22 +153,6 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         return true
     }
 
-    private fun getDataSize(): Int {
-        val dataSizeText = binding.dataSize.text.toString()
-
-        // should not occur if validated beforehand
-        if (dataSizeText.isEmpty()) throw IllegalArgumentException("invalid data size")
-
-        return dataSizeText.toInt()
-    }
-
-    private fun getChosenPeer(): Peer {
-        // should not occur if validated beforehand
-        if (chosenPeer == null) throw IllegalArgumentException("invalid peer")
-
-        return chosenPeer as Peer
-    }
-
     fun setTextToResult(text: String) {
         appendTextToResult(text, false)
     }
@@ -225,26 +167,6 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
             val formattedTime = currentTime.format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS"))
             binding.txtResult.text = oldText + formattedTime + " | " + text
         }
-    }
-
-    private fun calculateTimeStats(startTime: LocalDateTime, dataAmount: Int): String {
-        val endTime = LocalDateTime.now()
-        val duration: Duration = Duration.between(startTime, endTime)
-
-        // calculate time stats
-        val milliseconds: Long = duration.toMillis() % 1000
-        val seconds: Long = duration.seconds % 60
-        val minutes: Long = duration.toMinutes() % 60
-
-        // speed in Kb per second
-        val speed: Double = ((dataAmount).toDouble() / (duration.toMillis()).toDouble()) * (1000.0 / 1024.0)
-
-        var result = "$minutes:$seconds.$milliseconds"
-        if (!speed.isInfinite() && !speed.isNaN() && speed != 0.0) {
-            result += " (${String.format("%.3f", speed)} Kb/s)"
-        }
-
-        return result
     }
 
     private fun updateAvailablePeers()  {
@@ -272,7 +194,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         }
     }
 
-    fun getFileNames(folderPath: String): Array<String> {
+    private fun getFileNames(): Array<String> {
         val csvFileNames = mutableListOf<String>()
         try {
             // List all files in the "app/assets" folder
@@ -293,7 +215,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
     }
 
     private fun updateVoteFiles() {
-        val voteFiles = getFileNames("")
+        val voteFiles = getFileNames()
         if (!voteFiles.contentEquals(availableVotes)) {
             // peers have changed need to update
             availableVotes = voteFiles
@@ -323,7 +245,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         }
     }
 
-    fun readCsvToByteArray(fileName: String): ByteArray {
+    private fun readCsvToByteArray(fileName: String): ByteArray {
         val inputStream = requireContext().assets.open(fileName)
         val outputStream = ByteArrayOutputStream()
         val buffer = ByteArray(1024)
@@ -338,7 +260,6 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
     private fun updateView() {
         updateAvailablePeers()
         updateVoteFiles()
- //        binding.txtResult.text = "Available Peers: ${availablePeers.keys} \nData Size: ${binding.dataSize.text} \nChosen Peer: $chosenPeer"
     }
 }
 
