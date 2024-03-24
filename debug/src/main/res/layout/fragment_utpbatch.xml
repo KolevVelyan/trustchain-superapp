@@ -23,9 +23,7 @@
             android:id="@+id/auto_complete_txt"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:inputType="none"
-            android:textColor="#000000"
-            android:textColorHint="#000000" />
+            android:inputType="none"/>
     </com.google.android.material.textfield.TextInputLayout>
 
     <TextView
@@ -45,9 +43,7 @@
             android:id="@+id/auto_complete_votes"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:inputType="none"
-            android:textColor="#000000"
-            android:textColorHint="#000000" />
+            android:inputType="none" />
     </com.google.android.material.textfield.TextInputLayout>
 
     <TextView
