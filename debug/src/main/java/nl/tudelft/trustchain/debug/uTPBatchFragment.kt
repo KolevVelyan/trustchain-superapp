@@ -41,7 +41,7 @@ import java.time.format.DateTimeFormatter
 class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
     private val binding by viewBinding(FragmentUtpbatchBinding::bind)
 
-    private var receiver: ReceiveUTP? = null
+    private var receiver: UTPReceiver? = null
 
     private val CUSTOM_DATA_SIZE = "Custom Data Size"
 
@@ -57,7 +57,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
     ) {
         super.onViewCreated(view, savedInstanceState)
 
-        receiver = ReceiveUTP(activity, this)
+        receiver = UTPReceiver(activity, this)
         getDemoCommunity().addListener(receiver!!)
 
         updateAvailablePeers()
@@ -226,17 +226,11 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         return chosenPeer as Peer
     }
 
-    private fun convertDataToUTF8(data: ByteArray): String {
-        val utf8String = String(data, Charsets.UTF_8)
-
-        return if (utf8String.length > 1000) utf8String.substring(0, 1000) else utf8String
-    }
-
-    private fun setTextToResult(text: String) {
+    public fun setTextToResult(text: String) {
         appendTextToResult(text, false)
     }
 
-    private fun appendTextToResult(text: String, newline: Boolean = true) {
+    public fun appendTextToResult(text: String, newline: Boolean = true) {
         var oldText = binding.txtResult.text.toString() + "\n"
         if (binding.txtResult.text.isEmpty() || !newline) {
             oldText = ""
@@ -251,18 +245,18 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         val duration: Duration = Duration.between(startTime, endTime)
 
         // calculate time stats
-        val miliseconds: Long = duration.toMillis() % 1000
-        val seconds: Long = duration.getSeconds() % 60
+        val milliseconds: Long = duration.toMillis() % 1000
+        val seconds: Long = duration.seconds % 60
         val minutes: Long = duration.toMinutes() % 60
 
         // speed in Kb per second
-        var speed: Double = (dataAmount / 1024).toDouble() / (duration.toMillis() / 1000).toDouble()
+        val speed: Double = ((dataAmount).toDouble() / (duration.toMillis()).toDouble()) * (1000.0 / 1024.0)
 
-        if (speed.isInfinite()) {
-            speed = 10000.0; // 10 Mb/s
+        var result = "$minutes:$seconds.$milliseconds"
+        if (!speed.isInfinite() && !speed.isNaN() && speed != 0.0) {
+            result += " (${String.format("%.3f", speed)} Kb/s)"
         }
 
-        val result = "$minutes:$seconds.$miliseconds (${String.format("%.3f", speed)} Kb/s)"
         return result
     }
 
@@ -358,117 +352,6 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         updateAvailablePeers()
         updateVoteFiles()
  //        binding.txtResult.text = "Available Peers: ${availablePeers.keys} \nData Size: ${binding.dataSize.text} \nChosen Peer: $chosenPeer"
-    }
-
-    class ReceiveUTP(
-        val activity: FragmentActivity?,
-        val uTPBatchFragment: uTPBatchFragment
-    ) : OnOpenPortResponseListener {
-
-        private var isReceiving: Boolean = false
-
-
-
-        override fun onOpenPortResponse(source: IPv4Address, dataSize: Int?) {
-            try{
-                receiveData(source, dataSize)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-
-        }
-
-        private fun receiveData(source: IPv4Address, dataSize: Int?) {
-            if (isReceiving) {
-                return
-            }
-
-            isReceiving = true
-
-            try {
-                if (uTPBatchFragment.sendReceiveValidateInput(false)) {
-                    setUpReceiver(source, dataSize)
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            } finally {
-                isReceiving = false
-            }
-
-        }
-
-        private fun setUpReceiver(sender: IPv4Address, dataSize: Int?) {
-            val receiverPort: Int = 9999
-            try {
-                if (dataSize == 0 || dataSize == null) {
-                    throw IllegalArgumentException("Invalid data size received from sender")
-                }
-
-                // socket is defined by the sender's ip and chosen sender port
-                val socket = InetSocketAddress(InetAddress.getByName(sender.ip), sender.port)
-
-                // instantiate client to receive data
-                val c = UtpSocketChannelImpl()
-                try {
-                    c.dgSocket = DatagramSocket(receiverPort)
-                    c.state = CLOSED
-                } catch (exp: IOException) {
-                    throw IOException("Could not open UtpSocketChannel: ${exp.message}")
-                }
-                val channel: UtpSocketChannel = c
-                activity?.runOnUiThread {
-                    uTPBatchFragment.setTextToResult("Starting receiver on port $receiverPort for sender port ${sender.port}")
-                }
-
-
-                val cFut = channel.connect(socket) // connect to sender
-                cFut.block() // block until connection is established
-
-                val startTime = LocalDateTime.now()
-                activity?.runOnUiThread {
-                    uTPBatchFragment.appendTextToResult("Connected to sender (${socket.toString()})")
-                }
-
-                // Allocate space in buffer and start receiving
-                val buffer = ByteBuffer.allocate(dataSize)
-                val readFuture = channel.read(buffer)
-                readFuture.block() // block until all data is received
-
-                // Rewind the buffer to make sure you're reading from the beginning
-                buffer.rewind()
-
-                // Convert the buffer to a byte array
-                val data = ByteArray(buffer.remaining())
-                buffer.get(data)
-                val timeStats = uTPBatchFragment.calculateTimeStats(startTime, dataSize)
-                activity?.runOnUiThread {
-                    uTPBatchFragment.appendTextToResult("Received all ${data.size/1024} Kb of data in $timeStats")
-                }
-
-                activity?.runOnUiThread {
-                    uTPBatchFragment.appendTextToResult("Received data: \n${uTPBatchFragment.convertDataToUTF8(data)}")
-                }
-
-                channel.close()
-                activity?.runOnUiThread {
-                    uTPBatchFragment.appendTextToResult("Channel closed")
-                }
-
-            } catch (e: Exception) {
-                e.printStackTrace(System.err)
-                activity?.runOnUiThread {
-                    uTPBatchFragment.appendTextToResult("Error: ${e.message}")
-                }
-            }
-        }
-
-        public fun isReceiving(): Boolean {
-            return isReceiving
-        }
-
-
-
-
     }
 }
 
