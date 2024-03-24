@@ -57,6 +57,10 @@ class UTPReceiver(
 
     }
 
+    fun isReceiving(): Boolean {
+        return isReceiving
+    }
+
     private fun receiveData(source: IPv4Address, dataSize: Int?) {
         if (isReceiving) {
             return
@@ -126,16 +130,35 @@ class UTPReceiver(
             uTPBatchFragment.appendTextToResult("Error: ${e.message}")
         }
     }
-    fun isReceiving(): Boolean {
-        return isReceiving
-    }
 }
 
 
 class UTPSender(
     private val uTPBatchFragment: uTPBatchFragment // used for printing on the screen for now
 ) : UTPCommunication() {
-    fun setUpSender(dataToSend: ByteArray, senderPort: Int, senderIP: String) {
+    private var isSending: Boolean = false
+
+    fun isSending(): Boolean {
+        return isSending
+    }
+
+    fun sendData(dataToSend: ByteArray, senderIP: String, senderPort: Int) {
+        if (isSending) {
+            return
+        }
+
+        isSending = true
+
+        try {
+            setUpSender(dataToSend, senderIP, senderPort)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        } finally {
+            isSending = false
+        }
+    }
+
+    private fun setUpSender(dataToSend: ByteArray, senderIP: String, senderPort: Int) {
         try {
             // socket is defined by the sender's ip and chosen port
             val socket = InetSocketAddress(

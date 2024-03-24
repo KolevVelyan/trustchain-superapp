@@ -44,10 +44,9 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
     private var sender: UTPSender? = null
     private var receiver: UTPReceiver? = null
 
-    private val CUSTOM_DATA_SIZE = "Custom Data Size"
+    private var peerDropdown: PeerDropdown? = null
 
-    private var availablePeers = HashMap<IPv4Address, Peer>()
-    private var chosenPeer: Peer? = null
+    private val CUSTOM_DATA_SIZE = "Custom Data Size"
 
     private var availableVotes : Array<String> = emptyArray()
     private var chosenVote: String = ""
@@ -61,6 +60,8 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         sender = UTPSender(this)
         receiver = UTPReceiver(this)
         getDemoCommunity().addListener(receiver!!)
+
+        peerDropdown = PeerDropdown(requireContext())
 
 
         val policy = ThreadPolicy.Builder().permitAll().build()
@@ -84,28 +85,16 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         binding.btnSend.setOnClickListener {
             if (receiver!!.isReceiving()) {
                 Toast.makeText(requireContext(), "Cannot send while receiving.", Toast.LENGTH_SHORT).show()
+            } else if (sender!!.isSending()) {
+                Toast.makeText(
+                    requireContext(),
+                    "Already sending. Wait for previous send to finish!",
+                    Toast.LENGTH_SHORT
+                ).show()
             } else if (validateInput()) {
+                // neither receiving nor sending so start sending
                 val thread = Thread {
-                    val senderPort = 8093
-                    val senderIP = getDemoCommunity().myEstimatedWan.ip
-                    val byteData: ByteArray
-
-                    if (chosenVote == CUSTOM_DATA_SIZE || chosenVote.isEmpty()) {
-                        val dataSizeText = binding.dataSize.text.toString()
-
-                        // should not occur if validated beforehand
-                        if (dataSizeText.isEmpty()) throw IllegalArgumentException("invalid data size")
-
-                        byteData = ByteArray(dataSizeText.toInt() * 1024)
-                        Arrays.fill(
-                            byteData,
-                            0x6F.toByte()
-                        ) // currently data is just the character "o" over and over
-                    } else {
-                        byteData = readCsvToByteArray(chosenVote)
-                    }
-
-                    sender?.setUpSender(byteData, senderPort, senderIP)
+                    startSender()
                 }
                 thread.start()
             }
@@ -114,9 +103,12 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         binding.btnConnect.setOnClickListener {
             if (validateInput(false)) {
                 val senderPort: Int = 8093
-                val peerToPuncture = chosenPeer ?: throw IllegalArgumentException("invalid peer")
+                val peerToPuncture = peerDropdown?.getChosenPeer() ?: throw IllegalArgumentException("invalid peer")
                 val senderWan = peerToPuncture.wanAddress
-                puncturePortOfSender(senderWan, senderPort)
+
+                // try to puncture the uTP sender port
+                setTextToResult("Puncturing port $senderPort of $senderWan")
+                getDemoCommunity().openPort(senderWan, senderPort)
             }
         }
 
@@ -128,19 +120,11 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
 
     }
 
-    private fun puncturePortOfSender(addr: IPv4Address, port: Int) {
-        // try to puncture the uTP sender port
-        setTextToResult("Puncturing port $port of $addr")
-        getDemoCommunity().openPort(addr, port)
-    }
-
-
-
     private fun validateInput(includeData: Boolean = true): Boolean {
         val context: Context = requireContext()
 
 
-        if (chosenPeer == null) {
+        if (peerDropdown?.getChosenPeer() == null) {
             Toast.makeText(context, "Invalid peer", Toast.LENGTH_SHORT).show()
             return false
         }
@@ -151,6 +135,29 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         }
 
         return true
+    }
+
+    private fun startSender() {
+        val senderPort = 8093
+        val senderIP = getDemoCommunity().myEstimatedWan.ip
+        val byteData: ByteArray
+
+        if (chosenVote == CUSTOM_DATA_SIZE || chosenVote.isEmpty()) {
+            val dataSizeText = binding.dataSize.text.toString()
+
+            // should not occur if validated beforehand
+            if (dataSizeText.isEmpty()) throw IllegalArgumentException("invalid data size")
+
+            byteData = ByteArray(dataSizeText.toInt() * 1024)
+            Arrays.fill(
+                byteData,
+                0x6F.toByte()
+            ) // currently data is just the character "o" over and over
+        } else {
+            byteData = readCsvToByteArray(chosenVote)
+        }
+
+        sender?.sendData(byteData, senderIP, senderPort)
     }
 
     fun setTextToResult(text: String) {
@@ -166,31 +173,6 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
             val currentTime = LocalDateTime.now()
             val formattedTime = currentTime.format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS"))
             binding.txtResult.text = oldText + formattedTime + " | " + text
-        }
-    }
-
-    private fun updateAvailablePeers()  {
-        // get current peers
-        val currPeers: List<Peer> = getDemoCommunity().getPeers()
-        val newPeersMap = HashMap<IPv4Address, Peer>()
-        for (peer in currPeers) {
-            newPeersMap[peer.wanAddress] = peer
-        }
-
-        if (newPeersMap != availablePeers) {
-            // peers have changed need to update
-            availablePeers = newPeersMap
-            val autoComplete: AutoCompleteTextView = binding.autoCompleteTxt
-            val context: Context = requireContext()
-            val adapter = ArrayAdapter(context, R.layout.peer_item, availablePeers.keys.toList())
-
-            autoComplete.setAdapter(adapter)
-            autoComplete.onItemClickListener = AdapterView.OnItemClickListener {
-                    adapterView, view, i, l ->
-
-                val itemSelected = adapterView.getItemAtPosition(i)
-                chosenPeer = availablePeers[itemSelected]
-            }
         }
     }
 
@@ -258,7 +240,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
     }
 
     private fun updateView() {
-        updateAvailablePeers()
+        peerDropdown?.updateAvailablePeers(getDemoCommunity().getPeers(), binding.autoCompleteTxt)
         updateVoteFiles()
     }
 }

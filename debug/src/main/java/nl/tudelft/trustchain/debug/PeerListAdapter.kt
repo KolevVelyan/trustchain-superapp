@@ -12,9 +12,6 @@ import androidx.core.content.ContextCompat
 import nl.tudelft.ipv8.Peer
 import java.util.Date
 
-/**
- * Created by jaap on 5/4/16.
- */
 class PeerListAdapter(
     private val context: Context,
     resource: Int,
@@ -22,8 +19,8 @@ class PeerListAdapter(
     private val incoming: Boolean
 ) :
     ArrayAdapter<Peer?>(context, resource, peerConnectionList) {
-    override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-        var convertView = convertView
+    override fun getView(position: Int, convertViewVar: View?, parent: ViewGroup): View {
+        var convertView = convertViewVar
         val holder: ViewHolder
         if (convertView == null) {
             val inflater =
@@ -38,7 +35,7 @@ class PeerListAdapter(
             holder.mReceivedIndicator =
                 convertView.findViewById<View>(R.id.received_indicator) as TextView?
             holder.mSentIndicator = convertView.findViewById<View>(R.id.sent_indicator) as TextView?
-            convertView.setTag(holder)
+            convertView.tag = holder
         } else {
             holder = convertView.tag as ViewHolder
         }
