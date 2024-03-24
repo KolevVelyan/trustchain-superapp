@@ -81,15 +81,16 @@ class DemoCommunity : Community() {
         address: IPv4Address,
         portToOpen: Int
     ) {
-        val s = IPv8Socket(this)
-        val d = DatagramPacket("Hello World".toByteArray(), "Hello World".toByteArray().size)
-        val sa = InetAddress.getByName(address.ip)
-        System.out.print(sa);
-        d.address = InetAddress.getByName(address.ip);
-        d.port = address.port;
-
-        System.out.print(portToOpen)
-        s.send(d);
+        System.out.print(address.toString() + portToOpen)
+//        val s = IPv8Socket(this)
+//        val d = DatagramPacket("Hello World".toByteArray(), "Hello World".toByteArray().size)
+//        val sa = InetAddress.getByName(address.ip)
+//        System.out.print(sa);
+//        d.address = InetAddress.getByName(address.ip);
+//        d.port = address.port;
+//
+//        System.out.print(portToOpen)
+//        s.send(d);
     }
 
     // RECEIVE MESSAGE
@@ -144,7 +145,7 @@ class DemoCommunity : Community() {
     }
 }
 
-class IPv8Socket(val community: Community) : DatagramSocket(), EndpointListener {
+class IPv8Socket(val community: Community, var peer: Peer?) : DatagramSocket(), EndpointListener {
     val BUFFER_SIZE = 1234;
 
     //    val myLan: IPv4Address = IPv4Address().;
@@ -173,14 +174,14 @@ class IPv8Socket(val community: Community) : DatagramSocket(), EndpointListener 
         if (p == null)
             throw Error("Sorry, I cannot send without a packet")
 
-        val source = p.address.toString().replace("/", "")
+        if (peer == null)
+            throw Error("Peer is null, cannot send")
 
-        val address: IPv4Address = IPv4Address(source, p.port)
         val payload: UTPPayload = UTPPayload(p.port.toUInt(), p);
 
         val data =
             community.serializePacket(DemoCommunity.MessageId.UTP_RAW_DATA, payload, sign = false)
-        community.endpoint.send(address, data);
+        community.endpoint.send(peer!!, data)
     }
 
     override fun onPacket(packet: Packet) {

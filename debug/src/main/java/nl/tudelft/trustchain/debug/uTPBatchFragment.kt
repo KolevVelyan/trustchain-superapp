@@ -20,6 +20,7 @@ import net.utp4j.channels.UtpSocketState.CLOSED
 import net.utp4j.channels.impl.UtpSocketChannelImpl
 import nl.tudelft.ipv8.IPv4Address
 import nl.tudelft.ipv8.Peer
+import nl.tudelft.trustchain.common.DemoCommunity
 import nl.tudelft.trustchain.common.IPv8Socket
 import nl.tudelft.trustchain.common.UTPSender
 import nl.tudelft.trustchain.common.UTPService
@@ -75,9 +76,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
 
         binding.btnSend.setOnClickListener {
             if (sendReceiveValidateInput()) {
-                val senderPort: Int = 8093
-
-                setUpSender(senderPort)
+                setUpSender()
             }
         }
 
@@ -116,13 +115,9 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         getDemoCommunity().openPort(addr, port)
     }
 
-    private fun setUpServer() {
-
-    }
-
-    private fun setUpSender(receiverPort: Int: Int) {
+    private fun setUpSender() {
         val data = ByteArray(25);
-        val peer = InetSocketAddress(InetAddress.getByName(getChosenPeer().wanAddress.ip), receiverPort)
+        val peer = getChosenPeer()
 
         val sender = UTPSender(peer, getDemoCommunity())
 

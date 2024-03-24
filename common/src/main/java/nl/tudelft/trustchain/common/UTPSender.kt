@@ -1,15 +1,15 @@
 package nl.tudelft.trustchain.common
 
 import nl.tudelft.ipv8.Community
+import nl.tudelft.ipv8.Peer
 import java.net.DatagramPacket
 import java.net.SocketAddress
 
-class UTPSender(val peer: SocketAddress, val community: Community) {
+class UTPSender(val peer: Peer, val community: Community) {
+    public val socket = IPv8Socket(community, peer);
 
     fun send(data: ByteArray) {
-        val socket = IPv8Socket(community);
-
-        val packet = DatagramPacket(data, data.size, peer)
+        val packet = DatagramPacket(data, data.size)
         socket.send(packet)
     }
 }
