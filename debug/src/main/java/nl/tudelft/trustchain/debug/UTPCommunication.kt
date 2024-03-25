@@ -6,6 +6,7 @@ import net.utp4j.channels.UtpSocketState
 import net.utp4j.channels.impl.UtpSocketChannelImpl
 import nl.tudelft.ipv8.IPv4Address
 import nl.tudelft.trustchain.common.OnOpenPortResponseListener
+import nl.tudelft.trustchain.common.UTPDataFragment
 import java.io.IOException
 import java.net.DatagramSocket
 import java.net.InetAddress
@@ -44,7 +45,7 @@ open class UTPCommunication {
 
 // Subclass for sending data
 class UTPReceiver(
-    private val uTPBatchFragment: uTPBatchFragment // used for printing on the screen for now
+    private val uTPDataFragment: UTPDataFragment
 ) : UTPCommunication(), OnOpenPortResponseListener {
     private var isReceiving: Boolean = false
 
@@ -97,14 +98,14 @@ class UTPReceiver(
                 throw IOException("Could not open UtpSocketChannel: ${exp.message}")
             }
             val channel: UtpSocketChannel = c
-            uTPBatchFragment.setTextToResult("Starting receiver on port $receiverPort")
+            uTPDataFragment.debugInfo("Starting receiver on port $receiverPort", reset = true)
 
 
             val cFut = channel.connect(socket) // connect to sender
             cFut.block() // block until connection is established
 
             val startTime = LocalDateTime.now()
-            uTPBatchFragment.appendTextToResult("Connected to sender (${socket.toString()})")
+            uTPDataFragment.debugInfo("Connected to sender (${socket.toString()})")
 
             // Allocate space in buffer and start receiving
             val buffer = ByteBuffer.allocate(dataSize)
@@ -118,23 +119,24 @@ class UTPReceiver(
             val data = ByteArray(buffer.remaining())
             buffer.get(data)
             val timeStats = calculateTimeStats(startTime, dataSize)
-            uTPBatchFragment.appendTextToResult("Received ${data.size/1024} Kb of data in $timeStats")
+            uTPDataFragment.debugInfo("Received ${data.size/1024} Kb of data in $timeStats")
 
-            uTPBatchFragment.appendTextToResult("Received data: \n${convertDataToUTF8(data)}")
+            uTPDataFragment.debugInfo("Received data: \n${convertDataToUTF8(data)}")
 
             channel.close()
-            uTPBatchFragment.appendTextToResult("Channel closed")
+            uTPDataFragment.debugInfo("Channel closed")
 
+            uTPDataFragment.newDataReceived(data, sender)
         } catch (e: Exception) {
             e.printStackTrace(System.err)
-            uTPBatchFragment.appendTextToResult("Error: ${e.message}")
+            uTPDataFragment.debugInfo("Error: ${e.message}")
         }
     }
 }
 
 
 class UTPSender(
-    private val uTPBatchFragment: uTPBatchFragment // used for printing on the screen for now
+    private val uTPDataFragment: UTPDataFragment
 ) : UTPCommunication() {
     private var isSending: Boolean = false
 
@@ -171,14 +173,14 @@ class UTPSender(
                 // socket is defined by the sender's ip and chosen port
                 val server = UtpServerSocketChannel.open()
                 server.bind(socket)
-                uTPBatchFragment.setTextToResult("Socket ${socket.toString()} set up and bound")
+                uTPDataFragment.debugInfo("Socket ${socket.toString()} set up and bound", reset = true)
 
                 // wait until someone connects to socket and get new channel
                 val acceptFuture = server.accept()
-                uTPBatchFragment.appendTextToResult("Waiting for client to connect...")
+                uTPDataFragment.debugInfo("Waiting for client to connect...")
 
                 acceptFuture.block()
-                uTPBatchFragment.appendTextToResult("Client has connected")
+                uTPDataFragment.debugInfo("Client has connected")
                 val startTime = LocalDateTime.now()
                 val channel = acceptFuture.channel
 
@@ -188,19 +190,19 @@ class UTPSender(
                 val fut = channel.write(out)
                 fut.block() // block until all data is sent
                 val timeStats = calculateTimeStats(startTime, dataToSend.size)
-                uTPBatchFragment.appendTextToResult("Sent all ${dataToSend.size/1024} Kb of data in $timeStats")
+                uTPDataFragment.debugInfo("Sent all ${dataToSend.size/1024} Kb of data in $timeStats")
 
                 channel.close()
                 server.close()
-                uTPBatchFragment.appendTextToResult("Socket closed")
+                uTPDataFragment.debugInfo("Socket closed")
 
             } catch (e: java.lang.Exception) {
                 e.printStackTrace(System.err)
-                uTPBatchFragment.appendTextToResult("Error: ${e.message}")
+                uTPDataFragment.debugInfo("Error: ${e.message}")
             }
         } catch (e: java.lang.Exception) {
             e.printStackTrace(System.err)
-            uTPBatchFragment.appendTextToResult("Error: ${e.message}")
+            uTPDataFragment.debugInfo("Error: ${e.message}")
         }
     }
 }

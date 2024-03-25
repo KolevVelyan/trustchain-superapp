@@ -11,34 +11,23 @@ import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
 import android.widget.Toast
 import androidx.core.widget.doOnTextChanged
-import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import net.utp4j.channels.UtpServerSocketChannel
-import net.utp4j.channels.UtpSocketChannel
-import net.utp4j.channels.UtpSocketState.CLOSED
-import net.utp4j.channels.impl.UtpSocketChannelImpl
 import nl.tudelft.ipv8.IPv4Address
-import nl.tudelft.ipv8.Peer
-import nl.tudelft.trustchain.common.OnOpenPortResponseListener
+import nl.tudelft.trustchain.common.UTPDataFragment
 import nl.tudelft.trustchain.common.ui.BaseFragment
 import nl.tudelft.trustchain.common.util.viewBinding
 import nl.tudelft.trustchain.debug.databinding.FragmentUtpbatchBinding
 import java.io.ByteArrayOutputStream
 import java.io.IOException
-import java.net.DatagramSocket
-import java.net.InetAddress
-import java.net.InetSocketAddress
-import java.nio.ByteBuffer
 import java.util.Arrays
-import java.time.Duration
 
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 
-class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
+class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch), UTPDataFragment {
     private val binding by viewBinding(FragmentUtpbatchBinding::bind)
 
     private var sender: UTPSender? = null
@@ -120,6 +109,20 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
 
     }
 
+    override fun debugInfo(info: String, toast: Boolean, reset: Boolean) {
+        if (reset) {
+            setTextToResult(info)
+        } else {
+            appendTextToResult(info)
+        }
+    }
+
+    override fun newDataReceived(data: ByteArray, source: IPv4Address) {
+        val dataSize = data.size
+        val dataSizeInKB = dataSize / 1024
+        setTextToResult("Received data from $source with size $dataSizeInKB KB")
+    }
+
     private fun validateInput(includeData: Boolean = true): Boolean {
         val context: Context = requireContext()
 
@@ -160,11 +163,11 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch) {
         sender?.sendData(byteData, senderIP, senderPort)
     }
 
-    fun setTextToResult(text: String) {
+    private fun setTextToResult(text: String) {
         appendTextToResult(text, false)
     }
 
-    fun appendTextToResult(text: String, newline: Boolean = true) {
+    private fun appendTextToResult(text: String, newline: Boolean = true) {
         activity?.runOnUiThread {
             var oldText = binding.txtResult.text.toString() + "\n"
             if (binding.txtResult.text.isEmpty() || !newline) {

@@ -1,6 +1,5 @@
 package nl.tudelft.trustchain.common
 
-import android.widget.Toast
 import kotlinx.coroutines.flow.MutableSharedFlow
 import nl.tudelft.ipv8.Community
 import nl.tudelft.ipv8.IPv4Address
@@ -138,5 +137,14 @@ class DemoCommunity : Community() {
 
 interface OnOpenPortResponseListener {
     fun onOpenPortResponse(source: IPv4Address, dataSize: Int?)
+
+}
+
+interface UTPDataFragment {
+    fun debugInfo(info: String, toast: Boolean = false, reset: Boolean = false) {
+    }
+
+    fun newDataReceived(data: ByteArray, source: IPv4Address) {
+    }
 
 }
