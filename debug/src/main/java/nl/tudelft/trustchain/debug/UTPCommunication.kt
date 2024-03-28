@@ -121,7 +121,7 @@ class UTPReceiver(
             val timeStats = calculateTimeStats(startTime, dataSize)
             uTPDataFragment.debugInfo("Received ${data.size/1024} Kb of data in $timeStats")
 
-            uTPDataFragment.debugInfo("Received data: \n${convertDataToUTF8(data)}")
+//            uTPDataFragment.debugInfo("Received data: \n${convertDataToUTF8(data)}")
 
             channel.close()
             uTPDataFragment.debugInfo("Channel closed")
@@ -169,12 +169,18 @@ class UTPSender(
             )
 
             // instantiate socket to send data (it waits for client to through socket first)
+
+            // socket is defined by the sender's ip and chosen port
+            val server = UtpServerSocketChannel.open()
             try {
-                // socket is defined by the sender's ip and chosen port
-                val server = UtpServerSocketChannel.open()
                 server.bind(socket)
                 uTPDataFragment.debugInfo("Socket ${socket.toString()} set up and bound", reset = true)
+            } catch (e: java.lang.Exception) {
+                e.printStackTrace(System.err)
+                uTPDataFragment.debugInfo("Error: ${e.message}")
+            }
 
+            try {
                 // wait until someone connects to socket and get new channel
                 val acceptFuture = server.accept()
                 uTPDataFragment.debugInfo("Waiting for client to connect...")
@@ -192,13 +198,15 @@ class UTPSender(
                 val timeStats = calculateTimeStats(startTime, dataToSend.size)
                 uTPDataFragment.debugInfo("Sent all ${dataToSend.size/1024} Kb of data in $timeStats")
 
-                channel.close()
-                server.close()
-                uTPDataFragment.debugInfo("Socket closed")
+                uTPDataFragment.newDataSent(success=true, destinationAddress=channel.remoteAdress.toString())
 
+                channel.close()
+                uTPDataFragment.debugInfo("Socket closed")
             } catch (e: java.lang.Exception) {
                 e.printStackTrace(System.err)
                 uTPDataFragment.debugInfo("Error: ${e.message}")
+            } finally {
+                server.close()
             }
         } catch (e: java.lang.Exception) {
             e.printStackTrace(System.err)

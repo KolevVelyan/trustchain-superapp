@@ -15,16 +15,24 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import nl.tudelft.ipv8.IPv4Address
+import nl.tudelft.ipv8.Peer
 import nl.tudelft.trustchain.common.UTPDataFragment
 import nl.tudelft.trustchain.common.ui.BaseFragment
 import nl.tudelft.trustchain.common.util.viewBinding
 import nl.tudelft.trustchain.debug.databinding.FragmentUtpbatchBinding
 import java.io.ByteArrayOutputStream
 import java.io.IOException
+import java.net.SocketAddress
 import java.util.Arrays
 
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.Date
+
+data class UTPExchange(
+    val lastUTPReceive: Date? = null,
+    val lastUTPSent: Date? = null,
+)
 
 
 class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch), UTPDataFragment {
@@ -39,6 +47,10 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch), UTPDataFragme
 
     private var availableVotes : Array<String> = emptyArray()
     private var chosenVote: String = ""
+
+    private var peerList: List<Peer> = emptyList()
+
+    private var peersUTPExchange: HashMap<Peer, UTPExchange> = hashMapOf()
 
     override fun onViewCreated(
         view: View,
@@ -118,9 +130,43 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch), UTPDataFragme
     }
 
     override fun newDataReceived(data: ByteArray, source: IPv4Address) {
+        // update peer's last received time for UTP
+        val peer = peerList.find { it.wanAddress.ip == source.ip }
+        if (peer != null) {
+            peersUTPExchange[peer] = UTPExchange(lastUTPReceive = Date(), lastUTPSent = peersUTPExchange[peer]?.lastUTPSent)
+        } else {
+            Log.e("uTPBatchFragment", "Received data from unknown peer")
+        }
+
+
         val dataSize = data.size
         val dataSizeInKB = dataSize / 1024
-        setTextToResult("Received data from $source with size $dataSizeInKB KB")
+        appendTextToResult("Received data from $source with size $dataSizeInKB KB")
+    }
+
+    override fun newDataSent(success: Boolean, destinationAddress: String, msg: String) {
+        if (success) {
+            if (destinationAddress != "") {
+                val destinationIP: String = destinationAddress.split(":")[0].removePrefix("/")
+                val destinationPort: String = destinationAddress.split(":")[1]
+                appendTextToResult("Sent data to $destinationIP:$destinationPort")
+
+                // update peer's last sent time for UTP
+                val peer = peerList.find { it.wanAddress.ip == destinationIP }
+                if (peer != null) {
+                    peersUTPExchange[peer] = UTPExchange(lastUTPSent = Date(), lastUTPReceive = peersUTPExchange[peer]?.lastUTPReceive)
+                } else {
+                    Log.e("uTPBatchFragment", "Sent data to unknown peer")
+                }
+
+
+
+            } else {
+                appendTextToResult(msg)
+            }
+        } else {
+            appendTextToResult(msg)
+        }
     }
 
     private fun validateInput(includeData: Boolean = true): Boolean {
@@ -142,7 +188,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch), UTPDataFragme
 
     private fun startSender() {
         val senderPort = 8093
-        val senderIP = getDemoCommunity().myEstimatedWan.ip
+        val senderIP = getDemoCommunity().myEstimatedLan.ip
         val byteData: ByteArray
 
         if (chosenVote == CUSTOM_DATA_SIZE || chosenVote.isEmpty()) {
@@ -199,6 +245,38 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch), UTPDataFragme
         return csvFileNames.toTypedArray()
     }
 
+    private fun updatePeerList()  {
+        peerList = getDemoCommunity().getPeers()
+
+        // add new peers to UTP list
+        for (peer in peerList) {
+            if (!peersUTPExchange.containsKey(peer)) {
+                peersUTPExchange[peer] = UTPExchange()
+            }
+        }
+
+        // remove old peers from UTP list
+        val keys = peersUTPExchange.keys
+        for (key in keys) {
+            if (!peerList.contains(key)) {
+                peersUTPExchange.remove(key)
+            }
+        }
+
+        val context: Context = requireContext()
+
+        // incoming peers have non null UTP response time in peersUTPExchange get peer from peerList
+        val incomingPeers = peerList.filter { peersUTPExchange[it]?.lastUTPReceive != null }
+        val incomingPeerAdapter = PeerListAdapter(context, R.layout.peer_connection_list_item, incomingPeers, true, peersUTPExchange)
+        binding.incomingPeerConnectionListView.adapter = incomingPeerAdapter
+
+        // outgoing peers have non null UTP sent time in peersUTPExchange get peer from peerList
+        val outgoingPeers = peerList.filter { peersUTPExchange[it]?.lastUTPSent != null }
+        val outgoingPeerAdapter = PeerListAdapter(context, R.layout.peer_connection_list_item, outgoingPeers, false, peersUTPExchange)
+        binding.outgoingPeerConnectionListView.adapter = outgoingPeerAdapter
+
+    }
+
     private fun updateVoteFiles() {
         val voteFiles = getFileNames()
         if (!voteFiles.contentEquals(availableVotes)) {
@@ -245,6 +323,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch), UTPDataFragme
     private fun updateView() {
         peerDropdown?.updateAvailablePeers(getDemoCommunity().getPeers(), binding.autoCompleteTxt)
         updateVoteFiles()
+        updatePeerList()
     }
 }
 

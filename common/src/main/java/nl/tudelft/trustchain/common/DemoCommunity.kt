@@ -14,6 +14,7 @@ import nl.tudelft.trustchain.common.messaging.OpenPortPayload
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
+import java.net.SocketAddress
 import java.util.Date
 
 class DemoCommunity : Community() {
@@ -145,6 +146,9 @@ interface UTPDataFragment {
     }
 
     fun newDataReceived(data: ByteArray, source: IPv4Address) {
+    }
+
+    fun newDataSent(success: Boolean, destinationAddress: String = "", msg: String = "") {
     }
 
 }

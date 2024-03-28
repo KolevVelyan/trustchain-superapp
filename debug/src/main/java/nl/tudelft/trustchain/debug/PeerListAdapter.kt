@@ -16,7 +16,8 @@ class PeerListAdapter(
     private val context: Context,
     resource: Int,
     peerConnectionList: List<Peer?>,
-    private val incoming: Boolean
+    private val incoming: Boolean,
+    private val peersUTPExchange: HashMap<Peer, UTPExchange>
 ) :
     ArrayAdapter<Peer?>(context, resource, peerConnectionList) {
     override fun getView(position: Int, convertViewVar: View?, parent: ViewGroup): View {
@@ -39,28 +40,34 @@ class PeerListAdapter(
         } else {
             holder = convertView.tag as ViewHolder
         }
+
+
+
         val peer: Peer? = getItem(position)
         holder.mPeerId!!.text = getSplitMID(peer?.mid!!)
         holder.mDestinationAddress!!.text = peer.wanAddress.toString()
+
         val lastRequest = peer.lastRequest
         if (lastRequest != null) {
             if (Date().time - lastRequest.time < 200) {
                 animate(holder.mSentIndicator)
             }
-
         }
 
         val lastResponse = peer.lastResponse
         if (lastResponse != null) {
-            val milisecSinceLastResponse = Date().time - lastResponse.time
-
-            if (milisecSinceLastResponse < 200) {
+            if (Date().time - lastResponse.time < 200) {
                 animate(holder.mReceivedIndicator)
             }
+        }
 
-            if (milisecSinceLastResponse > 20 * 1000) {
+        val lastUTPReceive = peersUTPExchange[peer]?.lastUTPReceive
+        if (lastUTPReceive != null && incoming) {
+            val msSinceLastResponse = Date().time - lastUTPReceive.time
+
+            if (msSinceLastResponse > 20 * 1000) {
                 holder.mStatusIndicator!!.background = ContextCompat.getDrawable(context, R.drawable.peer_indicator_red)
-            } else if (milisecSinceLastResponse > 10 * 1000) {
+            } else if (msSinceLastResponse > 10 * 1000) {
                 holder.mStatusIndicator!!.background = ContextCompat.getDrawable(context, R.drawable.peer_indicator_yellow)
             } else {
                 holder.mStatusIndicator!!.background = ContextCompat.getDrawable(context, R.drawable.peer_indicator_green)

@@ -44,9 +44,8 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
         peerList = getDemoCommunity().getPeers()
 
         val context: Context = requireContext()
-        val incomingPeerAdapter = PeerListAdapter(context, R.layout.peer_connection_list_item, peerList, true)
-        binding.incomingPeerConnectionListView.adapter = incomingPeerAdapter
-
+//        val incomingPeerAdapter = PeerListAdapter(context, R.layout.peer_connection_list_item, peerList, true)
+//        binding.incomingPeerConnectionListView.adapter = incomingPeerAdapter
     }
 
     private fun updateView() {

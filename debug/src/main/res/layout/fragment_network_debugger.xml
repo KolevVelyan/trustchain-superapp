@@ -87,7 +87,6 @@
         android:id="@+id/lists"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@id/overviewButtons"
         android:paddingLeft="2dp"
         android:paddingRight="2dp">
 
