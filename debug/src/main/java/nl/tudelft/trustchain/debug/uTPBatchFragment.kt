@@ -1,14 +1,17 @@
 package nl.tudelft.trustchain.debug
 
+import android.app.AlertDialog
 import android.content.Context
 import android.os.Bundle
 import android.os.StrictMode
 import android.os.StrictMode.ThreadPolicy
 import android.util.Log
+import android.view.LayoutInflater
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
+import android.widget.TextView
 import android.widget.Toast
 import androidx.core.widget.doOnTextChanged
 import androidx.lifecycle.lifecycleScope
@@ -118,6 +121,11 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch), UTPDataFragme
 //                getDemoCommunity().openPort(senderWan, senderPort)
             }
         }
+
+        binding.infoButton.setOnClickListener{
+            showInfoDialog()
+        }
+
 
         binding.dataSize.doOnTextChanged { text, _, _, _ ->
             if (!text.isNullOrEmpty() && binding.dataSize.isEnabled) {
@@ -330,6 +338,28 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch), UTPDataFragme
         peerDropdown?.updateAvailablePeers(getDemoCommunity().getPeers(), binding.autoCompleteTxt)
         updateVoteFiles()
         updatePeerList()
+    }
+
+    private fun showInfoDialog() {
+        val dialogView = LayoutInflater.from(context).inflate(R.layout.info_popup_layout, null)
+        val infoTextView = dialogView.findViewById<TextView>(R.id.infoTextView)
+
+        // Customize the information text as needed
+        val ipv8 = getIpv8()
+        val demo = getDemoCommunity()
+
+        val lan_addr = demo.myEstimatedWan.ip.toString()
+
+        infoTextView.text = ""
+
+        val dialogBuilder = AlertDialog.Builder(context)
+            .setView(dialogView)
+            .setPositiveButton("OK") { dialog, _ ->
+                dialog.dismiss()
+            }
+
+        val alertDialog = dialogBuilder.create()
+        alertDialog.show()
     }
 }
 
