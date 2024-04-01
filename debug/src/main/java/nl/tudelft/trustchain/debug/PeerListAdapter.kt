@@ -63,11 +63,11 @@ class PeerListAdapter(
 
         val lastUTPReceive = peersUTPExchange[peer]?.lastUTPReceive
         if (lastUTPReceive != null && incoming) {
-            val msSinceLastResponse = Date().time - lastUTPReceive.time
+            val msSinceLastReceived = Date().time - lastUTPReceive.time
 
-            if (msSinceLastResponse > 20 * 1000) {
+            if (msSinceLastReceived > 20 * 1000) {
                 holder.mStatusIndicator!!.background = ContextCompat.getDrawable(context, R.drawable.peer_indicator_red)
-            } else if (msSinceLastResponse > 10 * 1000) {
+            } else if (msSinceLastReceived > 10 * 1000) {
                 holder.mStatusIndicator!!.background = ContextCompat.getDrawable(context, R.drawable.peer_indicator_yellow)
             } else {
                 holder.mStatusIndicator!!.background = ContextCompat.getDrawable(context, R.drawable.peer_indicator_green)
