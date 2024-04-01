@@ -8,14 +8,12 @@ import net.utp4j.channels.UtpSocketChannel
 import net.utp4j.channels.UtpSocketState
 import net.utp4j.channels.futures.UtpBlockableFuture
 import net.utp4j.channels.impl.UtpSocketChannelImpl
-import nl.tudelft.ipv8.Community
 import nl.tudelft.ipv8.IPv4Address
 import nl.tudelft.trustchain.common.DemoCommunity
 import nl.tudelft.trustchain.common.IPV8Socket
 import nl.tudelft.trustchain.common.OnUTPSendRequestListener
 import java.io.IOException
 import nl.tudelft.ipv8.Peer
-import nl.tudelft.trustchain.common.messaging.UTPSendPayload
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
@@ -73,10 +71,10 @@ open class UTPCommunication {
 // Subclass for receiving data
 class UTPReceiver(
     private val uTPDataFragment: UTPDataFragment,
-    community: Community
+    demoCommunity: DemoCommunity
 ) : UTPCommunication(), OnUTPSendRequestListener {
     private var isReceiving: Boolean = false
-    private var socket: IPV8Socket = IPV8Socket(community);
+    private var socket: IPV8Socket = IPV8Socket(demoCommunity);
 
     fun isReceiving(): Boolean {
         return isReceiving
@@ -151,10 +149,10 @@ class UTPReceiver(
 // Subclass for sending data
 class UTPSender(
     private val uTPDataFragment: UTPDataFragment,
-    private val community: Community
+    private val demoCommunity: DemoCommunity
 ) : UTPCommunication() {
     private var isSending: Boolean = false
-    private var socket: IPV8Socket = IPV8Socket(community);
+    private var socket: IPV8Socket = IPV8Socket(demoCommunity);
 
     fun isSending(): Boolean {
         return isSending
@@ -168,11 +166,7 @@ class UTPSender(
         isSending = true
 
         uTPDataFragment.debugInfo("Trying to send data to ${peerToSend.address.toString()}", reset = true)
-
-        // send request to receiver to ask if we can send our data
-        val payload = UTPSendPayload(dataToSend.size)
-        val packet = community.serializePacket(DemoCommunity.MessageId.UTP_SEND_REQUEST, payload, sign = false)
-        community.endpoint.send(peerToSend.address, packet)
+        demoCommunity.utpSendRequest(peerToSend.address, dataToSend.size)
 
         try {
             // instantiate socket to send data (it waits for client to through socket first)

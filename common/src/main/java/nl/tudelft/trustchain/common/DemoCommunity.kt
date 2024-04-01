@@ -75,6 +75,12 @@ class DemoCommunity : Community() {
         punctureChannel.tryEmit(Pair(packet.source, payload))
     }
 
+    public fun utpSendRequest(address: IPv4Address, dataSize: Int) {
+        val payload = UTPSendPayload(dataSize)
+        val packet = serializePacket(MessageId.UTP_SEND_REQUEST, payload, sign = false)
+        endpoint.send(address, packet)
+    }
+
     fun addListener(listener: OnUTPSendRequestListener) {
         listeners.add(listener)
     }
