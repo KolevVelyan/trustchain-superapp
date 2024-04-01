@@ -105,12 +105,3 @@ interface OnUTPSendRequestListener {
     fun onUTPSendRequest(sender: IPv4Address, dataSize: Int?)
 
 }
-
-interface UTPDataFragment {
-    fun debugInfo(info: String, toast: Boolean = false, reset: Boolean = false)
-
-    fun newDataReceived(data: ByteArray, source: IPv4Address)
-
-    fun newDataSent(success: Boolean, destinationAddress: String = "", msg: String = "")
-
-}

@@ -8,7 +8,6 @@ import nl.tudelft.ipv8.IPv4Address
 import nl.tudelft.trustchain.common.DemoCommunity
 import nl.tudelft.trustchain.common.IPV8Socket
 import nl.tudelft.trustchain.common.OnUTPSendRequestListener
-import nl.tudelft.trustchain.common.UTPDataFragment
 import java.io.IOException
 import nl.tudelft.ipv8.Peer
 import java.net.InetAddress
@@ -187,4 +186,13 @@ class UTPSender(
             isSending = false
         }
     }
+}
+
+interface UTPDataFragment {
+    fun debugInfo(info: String, toast: Boolean = false, reset: Boolean = false)
+
+    fun newDataReceived(data: ByteArray, source: IPv4Address)
+
+    fun newDataSent(success: Boolean, destinationAddress: String = "", msg: String = "")
+
 }
