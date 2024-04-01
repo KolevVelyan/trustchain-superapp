@@ -10,7 +10,7 @@ import nl.tudelft.ipv8.messaging.Address
 import nl.tudelft.ipv8.messaging.Packet
 import nl.tudelft.ipv8.messaging.payload.IntroductionResponsePayload
 import nl.tudelft.ipv8.messaging.payload.PuncturePayload
-import nl.tudelft.trustchain.common.messaging.OpenPortPayload
+import nl.tudelft.trustchain.common.messaging.UTPSendPayload
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
@@ -26,11 +26,9 @@ class DemoCommunity : Community() {
 
     val punctureChannel = MutableSharedFlow<Pair<Address, PuncturePayload>>(0, 10000)
 
-    var serverWanPort: Int? = null
     var senderDataSize: Int? = null
-    var receivedDataSize: Int? = null
 
-    private val listeners = mutableListOf<OnOpenPortResponseListener>()
+    private val listeners = mutableListOf<OnUTPSendRequestListener>()
 
     // Retrieve the trustchain community
     private fun getTrustChainCommunity(): TrustChainCommunity {
@@ -57,8 +55,7 @@ class DemoCommunity : Community() {
 
     object MessageId {
         const val PUNCTURE_TEST = 251
-        const val OPEN_PORT = 252
-        const val OPEN_PORT_RESPONSE = 253
+        const val UTP_SEND_REQUEST = 252
 
     }
 
@@ -71,20 +68,10 @@ class DemoCommunity : Community() {
         endpoint.send(address, packet)
     }
 
-    fun openPort(
-        address: IPv4Address,
-        portToOpen: Int
-    ) {
-        val payload = OpenPortPayload(portToOpen)
-        val packet = serializePacket(MessageId.OPEN_PORT, payload, sign = false)
-        endpoint.send(address, packet)
-    }
-
     // RECEIVE MESSAGE
     init {
         messageHandlers[MessageId.PUNCTURE_TEST] = ::onPunctureTest
-        messageHandlers[MessageId.OPEN_PORT] = ::onOpenPort
-        messageHandlers[MessageId.OPEN_PORT_RESPONSE] = ::onOpenPortResponse
+        messageHandlers[MessageId.UTP_SEND_REQUEST] = ::onUTPSendRequest
     }
 
     private fun onPunctureTest(packet: Packet) {
@@ -92,64 +79,37 @@ class DemoCommunity : Community() {
         punctureChannel.tryEmit(Pair(packet.source, payload))
     }
 
-    private fun onOpenPort(packet: Packet) {
-        val payload = packet.getPayload(OpenPortPayload.Deserializer)
-        payload.dataSize = senderDataSize ?: 0
-        if (packet.source is IPv4Address) {
-            sendData(
-                serializePacket(MessageId.OPEN_PORT_RESPONSE, payload, sign = false),
-                (packet.source as IPv4Address).ip,
-                (packet.source as IPv4Address).port,
-                payload.port
-            )
-        }
+    public fun utpSendRequest(address: IPv4Address, dataSize: Int) {
+        val payload = UTPSendPayload(dataSize)
+        val packet = serializePacket(MessageId.UTP_SEND_REQUEST, payload, sign = false)
+        endpoint.send(address, packet)
     }
 
-    private fun sendData(data: ByteArray, serverIp: String, serverPort: Int, clientPort: Int) {
-        try {
-            val address = InetAddress.getByName(serverIp)
-            val socket = DatagramSocket(clientPort)
-
-            val packet = DatagramPacket(data, data.size, address, serverPort)
-            socket.send(packet)
-
-            // Close the socket after sending data
-            socket.close()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    fun addListener(listener: OnOpenPortResponseListener) {
+    fun addListener(listener: OnUTPSendRequestListener) {
         listeners.add(listener)
     }
 
-    fun removeListener(listener: OnOpenPortResponseListener) {
+    fun removeListener(listener: OnUTPSendRequestListener) {
         listeners.remove(listener)
     }
 
-    private fun onOpenPortResponse(packet: Packet) {
-        this.serverWanPort = (packet.source as IPv4Address).port
-        this.receivedDataSize = packet.getPayload(OpenPortPayload.Deserializer).dataSize
-
-        listeners.forEach { it.onOpenPortResponse(packet.source as IPv4Address, packet.getPayload(OpenPortPayload.Deserializer).dataSize) }
+    private fun onUTPSendRequest(packet: Packet) {
+        val payload = packet.getPayload(UTPSendPayload.Deserializer)
+        listeners.forEach { it.onUTPSendRequest(packet.source as IPv4Address, payload.dataSize) }
     }
 
 }
 
-interface OnOpenPortResponseListener {
-    fun onOpenPortResponse(source: IPv4Address, dataSize: Int?)
+interface OnUTPSendRequestListener {
+    fun onUTPSendRequest(sender: IPv4Address, dataSize: Int?)
 
 }
 
 interface UTPDataFragment {
-    fun debugInfo(info: String, toast: Boolean = false, reset: Boolean = false) {
-    }
+    fun debugInfo(info: String, toast: Boolean = false, reset: Boolean = false)
 
-    fun newDataReceived(data: ByteArray, source: IPv4Address) {
-    }
+    fun newDataReceived(data: ByteArray, source: IPv4Address)
 
-    fun newDataSent(success: Boolean, destinationAddress: String = "", msg: String = "") {
-    }
+    fun newDataSent(success: Boolean, destinationAddress: String = "", msg: String = "")
 
 }

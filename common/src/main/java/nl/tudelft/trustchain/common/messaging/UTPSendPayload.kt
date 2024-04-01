@@ -6,24 +6,22 @@ import nl.tudelft.ipv8.messaging.Serializable
 import nl.tudelft.ipv8.messaging.deserializeLong
 import nl.tudelft.ipv8.messaging.serializeLong
 
-class OpenPortPayload(val port: Int, var dataSize: Int = 0): Serializable {
+class UTPSendPayload(var dataSize: Int = 0): Serializable {
     override fun serialize(): ByteArray {
-        return serializeLong(port.toLong()) + serializeLong(dataSize.toLong())
+        return serializeLong(dataSize.toLong())
     }
 
-    companion object Deserializer : Deserializable<OpenPortPayload> {
+    companion object Deserializer : Deserializable<UTPSendPayload> {
         override fun deserialize(
             buffer: ByteArray,
             offset: Int
-        ): Pair<OpenPortPayload, Int> {
+        ): Pair<UTPSendPayload, Int> {
             var localOffset = offset
 
-            val port = deserializeLong(buffer, localOffset)
-            localOffset += SERIALIZED_LONG_SIZE
             val dataSize = deserializeLong(buffer, localOffset)
             localOffset += SERIALIZED_LONG_SIZE
 
-            return Pair(OpenPortPayload(port.toInt(), dataSize.toInt()), localOffset)
+            return Pair(UTPSendPayload(dataSize.toInt()), localOffset)
         }
     }
 

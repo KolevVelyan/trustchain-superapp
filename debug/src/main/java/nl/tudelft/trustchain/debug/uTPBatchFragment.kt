@@ -17,13 +17,11 @@ import kotlinx.coroutines.isActive
 import nl.tudelft.ipv8.IPv4Address
 import nl.tudelft.ipv8.Peer
 import nl.tudelft.trustchain.common.UTPDataFragment
-import nl.tudelft.trustchain.common.messaging.OpenPortPayload
 import nl.tudelft.trustchain.common.ui.BaseFragment
 import nl.tudelft.trustchain.common.util.viewBinding
 import nl.tudelft.trustchain.debug.databinding.FragmentUtpbatchBinding
 import java.io.ByteArrayOutputStream
 import java.io.IOException
-import java.net.SocketAddress
 import java.util.Arrays
 
 import java.time.LocalDateTime
@@ -102,23 +100,6 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch), UTPDataFragme
             }
         }
 
-        binding.btnConnect.setOnClickListener {
-            if (validateInput(false)) {
-                val senderPort: Int = 8093
-                val peerToPuncture = peerDropdown?.getChosenPeer() ?: throw IllegalArgumentException("invalid peer")
-                val senderWan = peerToPuncture.wanAddress
-
-                val thread = Thread {
-                    receiver!!.onOpenPortResponse(peerToPuncture.address, getDemoCommunity().senderDataSize)
-                }
-                thread.start()
-
-
-//                // try to puncture the uTP sender port
-//                getDemoCommunity().openPort(senderWan, senderPort)
-            }
-        }
-
         binding.dataSize.doOnTextChanged { text, _, _, _ ->
             if (!text.isNullOrEmpty() && binding.dataSize.isEnabled) {
                 getDemoCommunity().senderDataSize = text.toString().toInt() * 1024
@@ -193,8 +174,6 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch), UTPDataFragme
     }
 
     private fun startSender() {
-        val senderPort = 8093
-        val senderIP = getDemoCommunity().myEstimatedLan.ip
         val byteData: ByteArray
 
         if (chosenVote == CUSTOM_DATA_SIZE || chosenVote.isEmpty()) {
@@ -212,7 +191,10 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch), UTPDataFragme
             byteData = readCsvToByteArray(chosenVote)
         }
 
-        sender?.sendData(byteData, senderIP, senderPort)
+        val peerToSend = peerDropdown?.getChosenPeer() ?: throw IllegalArgumentException("invalid peer")
+
+
+        sender?.sendData(peerToSend, byteData)
     }
 
     private fun setTextToResult(text: String) {
