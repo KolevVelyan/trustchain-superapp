@@ -9,7 +9,4 @@
     <item
         android:id="@+id/uTPBatch"
         android:title="uTP Batch Send" />
-    <item
-        android:id="@+id/networkDebugger"
-        android:title="Full Network Debugger" />
 </menu>
