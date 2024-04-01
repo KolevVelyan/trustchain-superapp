@@ -82,7 +82,7 @@ class UTPReceiver(
                 throw IOException("Could not open UtpSocketChannel: ${exp.message}")
             }
             val channel: UtpSocketChannel = c
-            uTPDataFragment.debugInfo("Starting receiver", reset = true)
+            uTPDataFragment.debugInfo("Starting receiver for ${sender.ip}:${sender.port}", reset = false)
 
 
             val cFut = channel.connect(socket) // connect to sender
@@ -105,7 +105,7 @@ class UTPReceiver(
             val timeStats = calculateTimeStats(startTime, dataSize)
             uTPDataFragment.debugInfo("Received ${data.size/1024} Kb of data in $timeStats")
 
-            uTPDataFragment.debugInfo("Received data: \n${convertDataToUTF8(data)}")
+            uTPDataFragment.debugInfo("Received data: ${convertDataToUTF8(data)}")
 
             channel.close()
             uTPDataFragment.debugInfo("Channel closed")
@@ -147,7 +147,6 @@ class UTPSender(
             val server = UtpServerSocketChannel.open()
             try {
                 server.bind(socket)
-                uTPDataFragment.debugInfo("Socket ${socket.toString()} set up and bound", reset = true)
             } catch (e: java.lang.Exception) {
                 e.printStackTrace(System.err)
                 uTPDataFragment.debugInfo("Error: ${e.message}")

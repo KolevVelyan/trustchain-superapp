@@ -11,10 +11,6 @@ import nl.tudelft.ipv8.messaging.Packet
 import nl.tudelft.ipv8.messaging.payload.IntroductionResponsePayload
 import nl.tudelft.ipv8.messaging.payload.PuncturePayload
 import nl.tudelft.trustchain.common.messaging.UTPSendPayload
-import java.net.DatagramPacket
-import java.net.DatagramSocket
-import java.net.InetAddress
-import java.net.SocketAddress
 import java.util.Date
 
 class DemoCommunity : Community() {
@@ -95,7 +91,12 @@ class DemoCommunity : Community() {
 
     private fun onUTPSendRequest(packet: Packet) {
         val payload = packet.getPayload(UTPSendPayload.Deserializer)
-        listeners.forEach { it.onUTPSendRequest(packet.source as IPv4Address, payload.dataSize) }
+        listeners.forEach {
+            val thread = Thread {
+                it.onUTPSendRequest(packet.source as IPv4Address, payload.dataSize)
+            }
+            thread.start()
+        }
     }
 
 }
