@@ -90,6 +90,9 @@ class IPV8Socket(val community: Community) : DatagramSocket(), EndpointListener 
             curAddr = sourceAddress as IPv4Address;
             readSemaphore.release()
         }
+//        else if (msgId == 252) {
+//            readSemaphore.release()
+//        }
     }
 
     override fun onEstimatedLanChanged(address: IPv4Address) {}
