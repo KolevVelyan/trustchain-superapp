@@ -73,6 +73,20 @@ class PeerListAdapter(
                 holder.mStatusIndicator!!.background = ContextCompat.getDrawable(context, R.drawable.peer_indicator_green)
             }
         }
+
+        val lastUTPSent = peersUTPExchange[peer]?.lastUTPSent
+        if (lastUTPSent != null && !incoming) {
+            val msSinceLastSent = Date().time - lastUTPSent.time
+
+            if (msSinceLastSent > 20 * 1000) {
+                holder.mStatusIndicator!!.background = ContextCompat.getDrawable(context, R.drawable.peer_indicator_red)
+            } else if (msSinceLastSent > 10 * 1000) {
+                holder.mStatusIndicator!!.background = ContextCompat.getDrawable(context, R.drawable.peer_indicator_yellow)
+            } else {
+                holder.mStatusIndicator!!.background = ContextCompat.getDrawable(context, R.drawable.peer_indicator_green)
+            }
+        }
+
         return convertView
     }
 
