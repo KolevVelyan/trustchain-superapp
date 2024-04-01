@@ -67,10 +67,10 @@ class DebugFragment : BaseFragment(R.layout.fragment_debug) {
                 true
             }
 
-            R.id.networkDebugger -> {
-                findNavController().navigate(R.id.networkDebuggerFragment)
-                true
-            }
+//            R.id.networkDebugger -> {
+//                findNavController().navigate(R.id.networkDebuggerFragment)
+//                true
+//            }
 
             else -> super.onOptionsItemSelected(item)
         }
