@@ -108,10 +108,11 @@ class UTPReceiver(
 
 
             val cFut = channel.connect(socket) // connect to sender
-            if (timeout(cFut))  {
-                uTPDataFragment.debugInfo("Timeout - Couldn't establish a connection with the sender")
-                return
-            }
+            cFut.block() // block until connection is established
+//            if (timeout(cFut))  {
+//                uTPDataFragment.debugInfo("Timeout - Couldn't establish a connection with the sender")
+//                return
+//            }
 
 
             val startTime = LocalDateTime.now()
@@ -183,10 +184,12 @@ class UTPSender(
                 val acceptFuture = server.accept()
                 uTPDataFragment.debugInfo("Waiting for client to connect...")
 
-                if (timeout(acceptFuture))  {
-                    uTPDataFragment.debugInfo("Timeout - Couldn't establish a connection with the receiver")
-                    return
-                }
+
+                acceptFuture.block() // block until connection is established
+//                if (timeout(acceptFuture))  {
+//                    uTPDataFragment.debugInfo("Timeout - Couldn't establish a connection with the receiver")
+//                    return
+//                }
 
                 uTPDataFragment.debugInfo("Client has connected")
                 val startTime = LocalDateTime.now()
