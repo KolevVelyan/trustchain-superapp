@@ -3,8 +3,12 @@ package nl.tudelft.trustchain.debug
 import net.utp4j.channels.UtpServerSocketChannel
 import net.utp4j.channels.UtpSocketChannel
 import net.utp4j.channels.UtpSocketState
+import net.utp4j.channels.impl.UtpServerSocketChannelImpl
 import net.utp4j.channels.impl.UtpSocketChannelImpl
+import net.utp4j.channels.impl.recieve.UtpRecieveRunnable
 import nl.tudelft.ipv8.IPv4Address
+import nl.tudelft.trustchain.common.DemoCommunity
+import nl.tudelft.trustchain.common.IPV8Socket
 import nl.tudelft.trustchain.common.OnOpenPortResponseListener
 import nl.tudelft.trustchain.common.UTPDataFragment
 import java.io.IOException
@@ -45,9 +49,11 @@ open class UTPCommunication {
 
 // Subclass for sending data
 class UTPReceiver(
-    private val uTPDataFragment: UTPDataFragment
+    private val uTPDataFragment: UTPDataFragment,
+    demoCommunity: DemoCommunity
 ) : UTPCommunication(), OnOpenPortResponseListener {
     private var isReceiving: Boolean = false
+    private var socket: IPV8Socket = IPV8Socket(demoCommunity);
 
     override fun onOpenPortResponse(source: IPv4Address, dataSize: Int?) {
         try{
@@ -92,7 +98,7 @@ class UTPReceiver(
             // instantiate client to receive data
             val c = UtpSocketChannelImpl()
             try {
-                c.dgSocket = DatagramSocket(receiverPort)
+                c.dgSocket = this.socket//DatagramSocket(receiverPort)
                 c.state = UtpSocketState.CLOSED
             } catch (exp: IOException) {
                 throw IOException("Could not open UtpSocketChannel: ${exp.message}")
@@ -136,9 +142,11 @@ class UTPReceiver(
 
 
 class UTPSender(
-    private val uTPDataFragment: UTPDataFragment
+    private val uTPDataFragment: UTPDataFragment,
+    demoCommunity: DemoCommunity
 ) : UTPCommunication() {
     private var isSending: Boolean = false
+    private var socket: IPV8Socket = IPV8Socket(demoCommunity);
 
     fun isSending(): Boolean {
         return isSending
@@ -163,10 +171,10 @@ class UTPSender(
     private fun setUpSender(dataToSend: ByteArray, senderIP: String, senderPort: Int) {
         try {
             // socket is defined by the sender's ip and chosen port
-            val socket = InetSocketAddress(
-                InetAddress.getByName(senderIP),
-                senderPort
-            )
+//            val socket = InetSocketAddress(
+//                InetAddress.getByName(senderIP),
+//                senderPort
+//            )
 
             // instantiate socket to send data (it waits for client to through socket first)
 
@@ -174,6 +182,11 @@ class UTPSender(
             val server = UtpServerSocketChannel.open()
             try {
                 server.bind(socket)
+
+//                server.socket = socket
+//                val me = server as UtpServerSocketChannelImpl
+//                me.setListenRunnable(UtpRecieveRunnable(server.socket, me))
+
                 uTPDataFragment.debugInfo("Socket ${socket.toString()} set up and bound", reset = true)
             } catch (e: java.lang.Exception) {
                 e.printStackTrace(System.err)
