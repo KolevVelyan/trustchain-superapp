@@ -341,17 +341,22 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch), UTPDataFragme
     }
 
     private fun showInfoDialog() {
-        val dialogView = LayoutInflater.from(context).inflate(R.layout.info_popup_layout, null)
-        val infoTextView = dialogView.findViewById<TextView>(R.id.infoTextView)
-
-        // Customize the information text as needed
         val ipv8 = getIpv8()
         val demo = getDemoCommunity()
 
-        val lan_addr = demo.myEstimatedWan.ip.toString()
+        val dialogView = LayoutInflater.from(context).inflate(R.layout.info_popup_layout, null)
 
-        infoTextView.text = ""
+        val lan = dialogView.findViewById<TextView>(R.id.lan_address)
+        val wan = dialogView.findViewById<TextView>(R.id.wan_address)
+        val conn_type = dialogView.findViewById<TextView>(R.id.connection_type)
+        val peer_id = dialogView.findViewById<TextView>(R.id.peer_id)
+        val green = dialogView.findViewById<TextView>(R.id.green)
 
+        lan.text = demo.myEstimatedLan.toString()
+        wan.text = demo.myEstimatedWan.toString()
+        conn_type.text = demo.network.wanLog.estimateConnectionType().value
+        peer_id.text = PeerListAdapter.getSplitMID(ipv8.myPeer.mid)
+        
         val dialogBuilder = AlertDialog.Builder(context)
             .setView(dialogView)
             .setPositiveButton("OK") { dialog, _ ->
