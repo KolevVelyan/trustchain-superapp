@@ -71,14 +71,6 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal">
 
-        <!-- Make the Puncture button smaller -->
-        <Button
-            android:id="@+id/btnConnect"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_weight="0"
-            android:text="Puncture" />
-
         <!-- Send button -->
         <Button
             android:id="@+id/btnSend"
