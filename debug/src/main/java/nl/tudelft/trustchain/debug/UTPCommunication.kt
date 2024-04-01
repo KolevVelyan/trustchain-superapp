@@ -82,7 +82,7 @@ class UTPReceiver(
                 throw IOException("Could not open UtpSocketChannel: ${exp.message}")
             }
             val channel: UtpSocketChannel = c
-            uTPDataFragment.debugInfo("Starting receiver for ${sender.ip}:${sender.port}", reset = false)
+            uTPDataFragment.debugInfo("Starting receiver for ${sender.ip}:${sender.port}", reset = true)
 
 
             val cFut = channel.connect(socket) // connect to sender
