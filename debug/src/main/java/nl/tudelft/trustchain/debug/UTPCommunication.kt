@@ -1,8 +1,12 @@
 package nl.tudelft.trustchain.debug
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.withTimeout
 import net.utp4j.channels.UtpServerSocketChannel
 import net.utp4j.channels.UtpSocketChannel
 import net.utp4j.channels.UtpSocketState
+import net.utp4j.channels.futures.UtpBlockableFuture
 import net.utp4j.channels.impl.UtpSocketChannelImpl
 import nl.tudelft.ipv8.IPv4Address
 import nl.tudelft.trustchain.common.DemoCommunity
@@ -16,6 +20,7 @@ import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.time.Duration
 import java.time.LocalDateTime
+import java.util.concurrent.TimeUnit
 
 open class UTPCommunication {
     fun convertDataToUTF8(data: ByteArray): String {
@@ -43,6 +48,24 @@ open class UTPCommunication {
         }
 
         return result
+    }
+
+    fun timeout(fut: UtpBlockableFuture): Boolean {
+        val connection =  Thread() {
+            try {
+                fut.block() // block until connection is established
+            } catch (_: java.lang.Exception) {
+            }
+        }
+
+        connection.start()
+        connection.join(30000)
+        if (connection.isAlive) { // If thread is still alive after join
+            connection.interrupt(); // Interrupt the thread
+            return true
+        }
+
+        return false
     }
 }
 
@@ -86,7 +109,11 @@ class UTPReceiver(
 
 
             val cFut = channel.connect(socket) // connect to sender
-            cFut.block() // block until connection is established
+            if (timeout(cFut))  {
+                uTPDataFragment.debugInfo("Timeout - Couldn't establish a connection with the sender")
+                return
+            }
+
 
             val startTime = LocalDateTime.now()
             uTPDataFragment.debugInfo("Connected to sender (${socket.toString()})")
@@ -139,7 +166,7 @@ class UTPSender(
 
         isSending = true
 
-        uTPDataFragment.debugInfo("Trying to send data to ${peerToSend.address.toString()}")
+        uTPDataFragment.debugInfo("Trying to send data to ${peerToSend.address.toString()}", reset = true)
         demoCommunity.utpSendRequest(peerToSend.address, dataToSend.size)
 
         try {
@@ -157,7 +184,11 @@ class UTPSender(
                 val acceptFuture = server.accept()
                 uTPDataFragment.debugInfo("Waiting for client to connect...")
 
-                acceptFuture.block()
+                if (timeout(acceptFuture))  {
+                    uTPDataFragment.debugInfo("Timeout - Couldn't establish a connection with the receiver")
+                    return
+                }
+
                 uTPDataFragment.debugInfo("Client has connected")
                 val startTime = LocalDateTime.now()
                 val channel = acceptFuture.channel
