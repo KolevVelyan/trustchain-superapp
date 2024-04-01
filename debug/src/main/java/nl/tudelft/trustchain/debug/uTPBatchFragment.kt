@@ -16,6 +16,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import nl.tudelft.ipv8.IPv4Address
 import nl.tudelft.trustchain.common.UTPDataFragment
+import nl.tudelft.trustchain.common.messaging.OpenPortPayload
 import nl.tudelft.trustchain.common.ui.BaseFragment
 import nl.tudelft.trustchain.common.util.viewBinding
 import nl.tudelft.trustchain.debug.databinding.FragmentUtpbatchBinding
@@ -95,9 +96,14 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch), UTPDataFragme
                 val peerToPuncture = peerDropdown?.getChosenPeer() ?: throw IllegalArgumentException("invalid peer")
                 val senderWan = peerToPuncture.wanAddress
 
-                // try to puncture the uTP sender port
-                setTextToResult("Puncturing port $senderPort of $senderWan")
-                getDemoCommunity().openPort(senderWan, senderPort)
+                val thread = Thread {
+                    receiver!!.onOpenPortResponse(peerToPuncture.address, getDemoCommunity().senderDataSize)
+                }
+                thread.start()
+
+
+//                // try to puncture the uTP sender port
+//                getDemoCommunity().openPort(senderWan, senderPort)
             }
         }
 
@@ -120,7 +126,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch), UTPDataFragme
     override fun newDataReceived(data: ByteArray, source: IPv4Address) {
         val dataSize = data.size
         val dataSizeInKB = dataSize / 1024
-        setTextToResult("Received data from $source with size $dataSizeInKB KB")
+        appendTextToResult("Received data from $source with size $dataSizeInKB KB")
     }
 
     private fun validateInput(includeData: Boolean = true): Boolean {

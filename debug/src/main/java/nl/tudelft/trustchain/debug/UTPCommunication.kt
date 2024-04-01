@@ -3,7 +3,9 @@ package nl.tudelft.trustchain.debug
 import net.utp4j.channels.UtpServerSocketChannel
 import net.utp4j.channels.UtpSocketChannel
 import net.utp4j.channels.UtpSocketState
+import net.utp4j.channels.impl.UtpServerSocketChannelImpl
 import net.utp4j.channels.impl.UtpSocketChannelImpl
+import net.utp4j.channels.impl.recieve.UtpRecieveRunnable
 import nl.tudelft.ipv8.IPv4Address
 import nl.tudelft.trustchain.common.DemoCommunity
 import nl.tudelft.trustchain.common.IPV8Socket
@@ -125,7 +127,7 @@ class UTPReceiver(
             val timeStats = calculateTimeStats(startTime, dataSize)
             uTPDataFragment.debugInfo("Received ${data.size/1024} Kb of data in $timeStats")
 
-            uTPDataFragment.debugInfo("Received data: \n${convertDataToUTF8(data)}")
+//            uTPDataFragment.debugInfo("Received data: \n${convertDataToUTF8(data)}")
 
             channel.close()
             uTPDataFragment.debugInfo("Channel closed")
@@ -179,6 +181,11 @@ class UTPSender(
                 // socket is defined by the sender's ip and chosen port
                 val server = UtpServerSocketChannel.open()
                 server.bind(socket)
+
+//                server.socket = socket
+//                val me = server as UtpServerSocketChannelImpl
+//                me.setListenRunnable(UtpRecieveRunnable(server.socket, me))
+
                 uTPDataFragment.debugInfo("Socket ${socket.toString()} set up and bound", reset = true)
 
                 // wait until someone connects to socket and get new channel

@@ -40,7 +40,11 @@ class IPV8Socket(val community: Community) : DatagramSocket(), EndpointListener 
 
     override fun receive(p: DatagramPacket?) {
         // block on the semaphore until the community.endpoint receives a packet and notifies the IPV8Socket listener
-        readSemaphore.acquire()
+        try {
+            readSemaphore.acquire()
+        } catch (e: InterruptedException) {
+            e.printStackTrace()
+        }
 
         // set the address, port and data of the p
         p?.socketAddress = InetSocketAddress(InetAddress.getByName(curAddr!!.ip), curAddr!!.port)

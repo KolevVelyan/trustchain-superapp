@@ -1,7 +1,6 @@
 package nl.tudelft.trustchain.common
 
 import kotlinx.coroutines.flow.MutableSharedFlow
-import net.utp4j.channels.UtpServerSocketChannel
 import nl.tudelft.ipv8.Community
 import nl.tudelft.ipv8.IPv4Address
 import nl.tudelft.ipv8.Peer
