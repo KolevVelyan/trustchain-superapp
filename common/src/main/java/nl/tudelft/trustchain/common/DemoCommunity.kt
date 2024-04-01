@@ -30,8 +30,6 @@ class DemoCommunity : Community() {
     var senderDataSize: Int? = null
     var receivedDataSize: Int? = null
 
-    val utp_ipv8_sock_overload = IPV8Socket(this)
-
     private val listeners = mutableListOf<OnOpenPortResponseListener>()
 
     // Retrieve the trustchain community

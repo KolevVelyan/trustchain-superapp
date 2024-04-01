@@ -51,7 +51,7 @@ class UTPReceiver(
     demoCommunity: DemoCommunity
 ) : UTPCommunication(), OnOpenPortResponseListener {
     private var isReceiving: Boolean = false
-    private var socket: IPV8Socket = demoCommunity.utp_ipv8_sock_overload;
+    private var socket: IPV8Socket = IPV8Socket(demoCommunity);
 
     override fun onOpenPortResponse(source: IPv4Address, dataSize: Int?) {
         try{
@@ -144,7 +144,7 @@ class UTPSender(
     demoCommunity: DemoCommunity
 ) : UTPCommunication() {
     private var isSending: Boolean = false
-    private var socket: IPV8Socket = demoCommunity.utp_ipv8_sock_overload;
+    private var socket: IPV8Socket = IPV8Socket(demoCommunity);
 
     fun isSending(): Boolean {
         return isSending
