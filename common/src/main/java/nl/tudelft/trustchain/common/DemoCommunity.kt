@@ -1,6 +1,7 @@
 package nl.tudelft.trustchain.common
 
 import kotlinx.coroutines.flow.MutableSharedFlow
+import net.utp4j.channels.UtpServerSocketChannel
 import nl.tudelft.ipv8.Community
 import nl.tudelft.ipv8.IPv4Address
 import nl.tudelft.ipv8.Peer
@@ -28,6 +29,8 @@ class DemoCommunity : Community() {
     var serverWanPort: Int? = null
     var senderDataSize: Int? = null
     var receivedDataSize: Int? = null
+
+    val utp_ipv8_sock_overload = IPV8Socket(this)
 
     private val listeners = mutableListOf<OnOpenPortResponseListener>()
 
@@ -58,6 +61,7 @@ class DemoCommunity : Community() {
         const val PUNCTURE_TEST = 251
         const val OPEN_PORT = 252
         const val OPEN_PORT_RESPONSE = 253
+
     }
 
     fun sendPuncture(

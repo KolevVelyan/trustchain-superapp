@@ -46,8 +46,8 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch), UTPDataFragme
     ) {
         super.onViewCreated(view, savedInstanceState)
 
-        sender = UTPSender(this)
-        receiver = UTPReceiver(this)
+        sender = UTPSender(this, getDemoCommunity())
+        receiver = UTPReceiver(this, getDemoCommunity())
         getDemoCommunity().addListener(receiver!!)
 
         peerDropdown = PeerDropdown(requireContext())
