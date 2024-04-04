@@ -18,6 +18,9 @@
         <action
             android:id="@+id/action_debugFragment_to_uTPBatchFragment"
             app:destination="@id/uTPBatchFragment" />
+        <action
+            android:id="@+id/action_debugFragment_to_networkDebuggerFragment"
+            app:destination="@id/networkDebuggerFragment" />
     </fragment>
     <fragment
         android:id="@+id/wanLogFragment"
@@ -31,4 +34,8 @@
         android:id="@+id/uTPBatchFragment"
         android:name="nl.tudelft.trustchain.debug.uTPBatchFragment"
         android:label="uTP Batch Send" />
+    <fragment
+        android:id="@+id/networkDebuggerFragment"
+        android:name="nl.tudelft.trustchain.debug.NetworkDebuggerFragment"
+        android:label="Network Debugger" />
 </navigation>

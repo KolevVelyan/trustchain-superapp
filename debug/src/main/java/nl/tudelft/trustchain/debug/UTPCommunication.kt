@@ -1,21 +1,28 @@
 package nl.tudelft.trustchain.debug
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.withTimeout
 import net.utp4j.channels.UtpServerSocketChannel
 import net.utp4j.channels.UtpSocketChannel
 import net.utp4j.channels.UtpSocketState
+import net.utp4j.channels.futures.UtpBlockableFuture
 import net.utp4j.channels.impl.UtpSocketChannelImpl
+import nl.tudelft.ipv8.Community
 import nl.tudelft.ipv8.IPv4Address
 import nl.tudelft.trustchain.common.DemoCommunity
 import nl.tudelft.trustchain.common.IPV8Socket
 import nl.tudelft.trustchain.common.OnUTPSendRequestListener
-import nl.tudelft.trustchain.common.UTPDataFragment
 import java.io.IOException
 import nl.tudelft.ipv8.Peer
+import nl.tudelft.trustchain.common.messaging.UTPSendPayload
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.time.Duration
 import java.time.LocalDateTime
+import java.util.Date
+import java.util.concurrent.TimeUnit
 
 open class UTPCommunication {
     fun convertDataToUTF8(data: ByteArray): String {
@@ -44,15 +51,33 @@ open class UTPCommunication {
 
         return result
     }
+
+    fun timeout(fut: UtpBlockableFuture): Boolean {
+        val connection =  Thread() {
+            try {
+                fut.block() // block until connection is established
+            } catch (_: java.lang.Exception) {
+            }
+        }
+
+        connection.start()
+        connection.join(30000)
+        if (connection.isAlive) { // If thread is still alive after join
+            connection.interrupt(); // Interrupt the thread
+            return true
+        }
+
+        return false
+    }
 }
 
 // Subclass for receiving data
 class UTPReceiver(
     private val uTPDataFragment: UTPDataFragment,
-    demoCommunity: DemoCommunity
+    community: Community
 ) : UTPCommunication(), OnUTPSendRequestListener {
     private var isReceiving: Boolean = false
-    private var socket: IPV8Socket = IPV8Socket(demoCommunity);
+    private var socket: IPV8Socket = IPV8Socket(community);
 
     fun isReceiving(): Boolean {
         return isReceiving
@@ -82,11 +107,16 @@ class UTPReceiver(
                 throw IOException("Could not open UtpSocketChannel: ${exp.message}")
             }
             val channel: UtpSocketChannel = c
-            uTPDataFragment.debugInfo("Starting receiver for ${sender.ip}:${sender.port}", reset = false)
+            uTPDataFragment.debugInfo("Starting receiver for ${sender.ip}:${sender.port}", reset = true)
 
 
             val cFut = channel.connect(socket) // connect to sender
             cFut.block() // block until connection is established
+//            if (timeout(cFut))  {
+//                uTPDataFragment.debugInfo("Timeout - Couldn't establish a connection with the sender")
+//                return
+//            }
+
 
             val startTime = LocalDateTime.now()
             uTPDataFragment.debugInfo("Connected to sender (${socket.toString()})")
@@ -123,10 +153,10 @@ class UTPReceiver(
 // Subclass for sending data
 class UTPSender(
     private val uTPDataFragment: UTPDataFragment,
-    private val demoCommunity: DemoCommunity
+    private val community: Community
 ) : UTPCommunication() {
     private var isSending: Boolean = false
-    private var socket: IPV8Socket = IPV8Socket(demoCommunity);
+    private var socket: IPV8Socket = IPV8Socket(community);
 
     fun isSending(): Boolean {
         return isSending
@@ -139,8 +169,12 @@ class UTPSender(
 
         isSending = true
 
-        uTPDataFragment.debugInfo("Trying to send data to ${peerToSend.address.toString()}")
-        demoCommunity.utpSendRequest(peerToSend.address, dataToSend.size)
+        uTPDataFragment.debugInfo("Trying to send data to ${peerToSend.address.toString()}", reset = true)
+
+        // send request to receiver to ask if we can send our data
+        val payload = UTPSendPayload(dataToSend.size)
+        val packet = community.serializePacket(DemoCommunity.MessageId.UTP_SEND_REQUEST, payload, sign = false)
+        community.endpoint.send(peerToSend.address, packet)
 
         try {
             // instantiate socket to send data (it waits for client to through socket first)
@@ -157,7 +191,13 @@ class UTPSender(
                 val acceptFuture = server.accept()
                 uTPDataFragment.debugInfo("Waiting for client to connect...")
 
-                acceptFuture.block()
+
+                acceptFuture.block() // block until connection is established
+//                if (timeout(acceptFuture))  {
+//                    uTPDataFragment.debugInfo("Timeout - Couldn't establish a connection with the receiver")
+//                    return
+//                }
+
                 uTPDataFragment.debugInfo("Client has connected")
                 val startTime = LocalDateTime.now()
                 val channel = acceptFuture.channel
@@ -188,3 +228,17 @@ class UTPSender(
         }
     }
 }
+
+interface UTPDataFragment {
+    fun debugInfo(info: String, toast: Boolean = false, reset: Boolean = false)
+
+    fun newDataReceived(data: ByteArray, source: IPv4Address)
+
+    fun newDataSent(success: Boolean, destinationAddress: String = "", msg: String = "")
+
+}
+
+data class UTPExchange(
+    val lastUTPReceive: Date? = null,
+    val lastUTPSent: Date? = null,
+)

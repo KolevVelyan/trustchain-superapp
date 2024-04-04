@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:focusableInTouchMode="true"
+    android:orientation="vertical"
+    android:padding="8dp">
+
+    <TableLayout
+        android:id="@+id/overviewButtons"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <TableRow>
+        <TableRow android:layout_marginTop="20dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:text="Network Debugger Legend"
+                android:textStyle="bold" />
+        </TableRow>
+        </TableRow>
+
+
+        <TableRow>
+
+
+            <TableRow>
+
+                <TextView
+                    android:id="@+id/status_green"
+                    android:layout_width="15dp"
+                    android:layout_height="15dp"
+                    android:layout_marginTop="2dp"
+                    android:background="@drawable/peer_indicator_green" />
+
+
+                <TextView
+                    android:id="@+id/green"
+                    android:layout_width="250dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:text=" Sent/Received UTP data in the last 10 seconds" />
+            </TableRow>
+
+
+        </TableRow>
+
+        <TableRow>
+
+
+            <TableRow>
+
+                <TextView
+                    android:id="@+id/status_yellow"
+                    android:layout_width="15dp"
+                    android:layout_height="15dp"
+                    android:layout_marginTop="2dp"
+                    android:background="@drawable/peer_indicator_yellow" />
+
+
+                <TextView
+                    android:id="@+id/yellow"
+                    android:layout_width="250dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text=" Sent/Received UTP data 10 to 20 seconds ago" />
+            </TableRow>
+
+
+        </TableRow>
+
+        <TableRow>
+
+
+            <TableRow>
+
+                <TextView
+                    android:id="@+id/status_red"
+                    android:layout_width="15dp"
+                    android:layout_height="15dp"
+                    android:layout_marginTop="2dp"
+                    android:background="@drawable/peer_indicator_red" />
+
+
+                <TextView
+                    android:id="@+id/red"
+                    android:layout_width="250dp"
+                    android:layout_height="wrap_content"
+                    android:singleLine="false"
+                    android:layout_gravity="center_vertical"
+                    android:text=" Sent/Received UTP data more than 20 seconds ago" />
+            </TableRow>
+
+        </TableRow>
+
+        <TableRow>
+
+
+            <TableRow>
+
+                <TextView
+                    android:id="@+id/received"
+                    android:layout_width="15dp"
+                    android:layout_height="19dp"
+                    android:text="R"
+                    android:textColor="#487eb0"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+
+                <TextView
+                    android:id="@+id/received_text"
+                    android:layout_width="250dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text=" Received packet of IPV8 walking protocol" />
+            </TableRow>
+        </TableRow>
+
+        <TableRow>
+
+            <TableRow>
+
+                <TextView
+                    android:id="@+id/sent_indicator"
+                    android:layout_width="15dp"
+                    android:layout_height="19dp"
+                    android:text="S"
+                    android:textColor="#D980FA"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/sent_text"
+                    android:layout_width="250dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text=" Received packet of IPV8 walking protocol" />
+            </TableRow>
+        </TableRow>
+
+    </TableLayout>
+</LinearLayout>
+
