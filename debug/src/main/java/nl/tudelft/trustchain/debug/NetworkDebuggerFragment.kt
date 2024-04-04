@@ -1,19 +1,13 @@
 package nl.tudelft.trustchain.debug
 
-import android.app.AlertDialog
 import android.content.Context
 import android.os.Bundle
 import android.os.StrictMode
 import android.os.StrictMode.ThreadPolicy
 import android.util.Log
-import android.view.LayoutInflater
 import android.view.View
-import android.widget.AdapterView
-import android.widget.ArrayAdapter
-import android.widget.AutoCompleteTextView
-import android.widget.TextView
 import android.widget.Toast
-import androidx.core.widget.doOnTextChanged
+import androidx.fragment.app.DialogFragment
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -22,14 +16,8 @@ import nl.tudelft.ipv8.Peer
 import nl.tudelft.trustchain.common.ui.BaseFragment
 import nl.tudelft.trustchain.common.util.viewBinding
 import nl.tudelft.trustchain.debug.databinding.FragmentNetworkDebuggerBinding
-import nl.tudelft.trustchain.debug.databinding.FragmentUtpbatchBinding
-import java.io.ByteArrayOutputStream
-import java.io.IOException
-import java.util.Arrays
-
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.util.Date
 
 
 class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger), UTPDataFragment {
@@ -38,16 +26,7 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
     private var sender: UTPSender? = null
     private var receiver: UTPReceiver? = null
 
-    private var peerDropdown: PeerDropdown? = null
-
-    private val CUSTOM_DATA_SIZE = "Custom Data Size"
-
-    private var availableVotes : Array<String> = emptyArray()
-    private var chosenVote: String = ""
-
     private var peerList: List<Peer> = emptyList()
-
-    private var peersUTPExchange: HashMap<Peer, UTPExchange> = hashMapOf()
 
     override fun onViewCreated(
         view: View,
@@ -57,12 +36,7 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
 
         sender = UTPSender(this, getDemoCommunity())
         receiver = UTPReceiver(this, getDemoCommunity())
-        getDemoCommunity().addListener(receiver!!)
-
-        peerDropdown = PeerDropdown(requireContext())
-
-        updateVoteFiles()
-
+//        getDemoCommunity().addListener(receiver!!)
 
         val policy = ThreadPolicy.Builder().permitAll().build()
         StrictMode.setThreadPolicy(policy)
@@ -73,35 +47,6 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
                 delay(100)
             }
         }
-
-        binding.btnSend.setOnClickListener {
-            if (receiver!!.isReceiving()) {
-                Toast.makeText(requireContext(), "Cannot send while receiving.", Toast.LENGTH_SHORT).show()
-            } else if (sender!!.isSending()) {
-                Toast.makeText(
-                    requireContext(),
-                    "Already sending. Wait for previous send to finish!",
-                    Toast.LENGTH_SHORT
-                ).show()
-            } else if (validateInput()) {
-                // neither receiving nor sending so start sending
-                val thread = Thread {
-                    startSender()
-                }
-                thread.start()
-            }
-        }
-
-        binding.infoButton.setOnClickListener{
-            showInfoDialog()
-        }
-
-        binding.dataSize.doOnTextChanged { text, _, _, _ ->
-            if (!text.isNullOrEmpty() && binding.dataSize.isEnabled) {
-                getDemoCommunity().senderDataSize = text.toString().toInt() * 1024
-            }
-        }
-
     }
 
     override fun debugInfo(info: String, toast: Boolean, reset: Boolean) {
@@ -116,9 +61,9 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
         // update peer's last received time for UTP
         val peer = peerList.find { it.wanAddress.ip == source.ip }
         if (peer != null) {
-            peersUTPExchange[peer] = UTPExchange(lastUTPReceive = Date(), lastUTPSent = peersUTPExchange[peer]?.lastUTPSent)
+            Log.i("UTP", "Received data from known ${source.ip}")
         } else {
-            Log.e("uTPBatchFragment", "Received data from unknown peer")
+            Log.e("UTP", "Received data from unknown peer")
         }
 
 
@@ -137,9 +82,9 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
                 // update peer's last sent time for UTP
                 val peer = peerList.find { it.wanAddress.ip == destinationIP }
                 if (peer != null) {
-                    peersUTPExchange[peer] = UTPExchange(lastUTPSent = Date(), lastUTPReceive = peersUTPExchange[peer]?.lastUTPReceive)
+                    Log.i("UTP", "Sent data to known $destinationIP:$destinationPort")
                 } else {
-                    Log.e("uTPBatchFragment", "Sent data to unknown peer")
+                    Log.e("UTP", "Sent data to unknown peer")
                 }
 
 
@@ -150,47 +95,6 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
         } else {
             appendTextToResult(msg)
         }
-    }
-
-    private fun validateInput(includeData: Boolean = true): Boolean {
-        val context: Context = requireContext()
-
-
-        if (peerDropdown?.getChosenPeer() == null) {
-            Toast.makeText(context, "Invalid peer", Toast.LENGTH_SHORT).show()
-            return false
-        }
-
-        if (includeData && binding.dataSize.text.toString().isEmpty() && binding.dataSize.isEnabled) {
-            Toast.makeText(context, "Invalid data size", Toast.LENGTH_SHORT).show()
-            return false
-        }
-
-        return true
-    }
-
-    private fun startSender() {
-        val byteData: ByteArray
-
-        if (chosenVote == CUSTOM_DATA_SIZE || chosenVote.isEmpty()) {
-            val dataSizeText = binding.dataSize.text.toString()
-
-            // should not occur if validated beforehand
-            if (dataSizeText.isEmpty()) throw IllegalArgumentException("invalid data size")
-
-            byteData = ByteArray(dataSizeText.toInt() * 1024)
-            Arrays.fill(
-                byteData,
-                0x6F.toByte()
-            ) // currently data is just the character "o" over and over
-        } else {
-            byteData = readCsvToByteArray(chosenVote)
-        }
-
-        val peerToSend = peerDropdown?.getChosenPeer() ?: throw IllegalArgumentException("invalid peer")
-
-
-        sender?.sendData(peerToSend, byteData)
     }
 
     private fun setTextToResult(text: String) {
@@ -209,113 +113,38 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
         }
     }
 
-    private fun getFileNames(): Array<String> {
-        val csvFileNames = mutableListOf<String>()
-        try {
-            // List all files in the "app/assets" folder
-            val files = requireContext().assets.list("") ?: return emptyArray()
-            for (file in files) {
-                // Check if the file is a CSV file
-                if (file.endsWith(".csv")) {
-                    csvFileNames.add(file)
-                }
-            }
-        } catch (e: IOException) {
-            e.printStackTrace()
-        }
-        // add CUSTOM_DATA_SIZE to the list of available votes
-        csvFileNames.add(CUSTOM_DATA_SIZE)
-
-        return csvFileNames.toTypedArray()
-    }
-
     private fun updatePeerList()  {
         peerList = getDemoCommunity().getPeers()
-
-        // add new peers to UTP list
-        for (peer in peerList) {
-            if (!peersUTPExchange.containsKey(peer)) {
-                peersUTPExchange[peer] = UTPExchange()
-            }
-        }
-
-        // remove old peers from UTP list
-        val keys = peersUTPExchange.keys
-        for (key in keys) {
-            if (!peerList.contains(key)) {
-                peersUTPExchange.remove(key)
-            }
-        }
-
         val context: Context = requireContext()
 
-        // incoming peers have non null UTP response time in peersUTPExchange get peer from peerList
-        val incomingPeers = peerList.filter { peersUTPExchange[it]?.lastUTPReceive != null }
-        val incomingPeerAdapter = PeerListAdapter(context, R.layout.peer_connection_list_item, incomingPeers, true, peersUTPExchange)
-        binding.incomingPeerConnectionListView.adapter = incomingPeerAdapter
+        val peerListAdapter = PeerListAdapter(context, R.layout.peer_connection_list_item, peerList)
+        binding.peerConnectionListView.adapter = peerListAdapter
 
-        // outgoing peers have non null UTP sent time in peersUTPExchange get peer from peerList
-        val outgoingPeers = peerList.filter { peersUTPExchange[it]?.lastUTPSent != null }
-        val outgoingPeerAdapter = PeerListAdapter(context, R.layout.peer_connection_list_item, outgoingPeers, false, peersUTPExchange)
-        binding.outgoingPeerConnectionListView.adapter = outgoingPeerAdapter
+        binding.peerConnectionListView.setOnItemClickListener { _, _, position, _ ->
+            val peer = peerList[position]
 
-    }
-
-    private fun updateVoteFiles() {
-        val voteFiles = getFileNames()
-        if (!voteFiles.contentEquals(availableVotes)) {
-            // peers have changed need to update
-            availableVotes = voteFiles
-            val autoComplete: AutoCompleteTextView = binding.autoCompleteVotes
-            val context: Context = requireContext()
-            val adapter = ArrayAdapter(context, R.layout.vote_item, availableVotes)
-
-            autoComplete.setAdapter(adapter)
-            autoComplete.onItemClickListener = AdapterView.OnItemClickListener {
-                    adapterView, _, i, _ ->
-
-                val itemSelected = adapterView.getItemAtPosition(i)
-                chosenVote = itemSelected.toString()
-
-                if (chosenVote == CUSTOM_DATA_SIZE || chosenVote.isEmpty()) {
-                    binding.dataSize.isEnabled = true
-                    binding.dataSize.setText("0")
-                    getDemoCommunity().senderDataSize = 0
-                } else {
-                    binding.dataSize.isEnabled = false
-                    val dataSize = readCsvToByteArray(chosenVote).size
-                    getDemoCommunity().senderDataSize = dataSize
-                    binding.dataSize.setText((dataSize / 1024).toString())
-                }
-
+            if (peer.address.ip == "0.0.0.0") {
+                Toast.makeText(context, "Not allowed to send data to ${peer.address.ip}", Toast.LENGTH_SHORT).show()
+            } else {
+                val utpDialog = UTPSendDialogFragment(peer, getDemoCommunity()) as DialogFragment
+                utpDialog.show(parentFragmentManager, UTPSendDialogFragment.TAG)
             }
         }
+
     }
 
-    private fun readCsvToByteArray(fileName: String): ByteArray {
-        val inputStream = requireContext().assets.open(fileName)
-        val outputStream = ByteArrayOutputStream()
-        val buffer = ByteArray(1024)
-        var length: Int
-        while (inputStream.read(buffer).also { length = it } != -1) {
-            outputStream.write(buffer, 0, length)
-        }
-        inputStream.close()
-        return outputStream.toByteArray()
-    }
-
-    private fun showInfoDialog() {
-        val dialogView = LayoutInflater.from(context).inflate(R.layout.info_popup_layout, null)
-
-        val dialogBuilder = AlertDialog.Builder(context)
-            .setView(dialogView)
-            .setPositiveButton("OK") { dialog, _ ->
-                dialog.dismiss()
-            }
-
-        val alertDialog = dialogBuilder.create()
-        alertDialog.show()
-    }
+//    private fun showInfoDialog() {
+//        val dialogView = LayoutInflater.from(context).inflate(R.layout.info_popup_layout, null)
+//
+//        val dialogBuilder = AlertDialog.Builder(context)
+//            .setView(dialogView)
+//            .setPositiveButton("OK") { dialog, _ ->
+//                dialog.dismiss()
+//            }
+//
+//        val alertDialog = dialogBuilder.create()
+//        alertDialog.show()
+//    }
 
     private fun updateMyDetails() {
         val ipv8 = getIpv8()
@@ -327,9 +156,7 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
         binding.peerId.text = PeerListAdapter.getSplitMID(ipv8.myPeer.mid)
     }
 
-
     private fun updateView() {
-        peerDropdown?.updateAvailablePeers(getDemoCommunity().getPeers(), binding.autoCompleteTxt)
         updatePeerList()
         updateMyDetails()
     }

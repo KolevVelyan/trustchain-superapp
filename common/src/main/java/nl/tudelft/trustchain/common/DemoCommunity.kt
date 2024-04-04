@@ -22,8 +22,6 @@ class DemoCommunity : Community() {
 
     val punctureChannel = MutableSharedFlow<Pair<Address, PuncturePayload>>(0, 10000)
 
-    var senderDataSize: Int? = null
-
     private val listeners = mutableListOf<OnUTPSendRequestListener>()
 
     // Retrieve the trustchain community

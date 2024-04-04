@@ -7,9 +7,6 @@
         android:id="@+id/multiPunch"
         android:title="NAT Puncturing" />
     <item
-        android:id="@+id/uTPBatch"
-        android:title="uTP Batch Send" />
-    <item
         android:id="@+id/networkDebugger"
         android:title="Network Debugger" />
 </menu>

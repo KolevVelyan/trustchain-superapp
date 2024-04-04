@@ -1,8 +1,6 @@
 package nl.tudelft.trustchain.debug
 
 import android.content.Context
-import android.graphics.Color
-import android.net.ConnectivityManager
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -16,8 +14,6 @@ class PeerListAdapter(
     private val context: Context,
     resource: Int,
     peerConnectionList: List<Peer?>,
-    private val incoming: Boolean,
-    private val peersUTPExchange: HashMap<Peer, UTPExchange>
 ) :
     ArrayAdapter<Peer?>(context, resource, peerConnectionList) {
     override fun getView(position: Int, convertViewVar: View?, parent: ViewGroup): View {
@@ -47,40 +43,27 @@ class PeerListAdapter(
         holder.mPeerId!!.text = getSplitMID(peer?.mid!!)
         holder.mDestinationAddress!!.text = peer.wanAddress.toString()
 
-        val lastRequest = peer.lastRequest
-        if (lastRequest != null) {
-            if (Date().time - lastRequest.time < 200) {
-                animate(holder.mSentIndicator)
-            }
-        }
+//        val lastRequest = peer.lastRequest
+//        if (lastRequest != null) {
+//            if (Date().time - lastRequest.time < 200) {
+//                animate(holder.mSentIndicator)
+//            }
+//        }
+//
+//        val lastResponse = peer.lastResponse
+//        if (lastResponse != null) {
+//            if (Date().time - lastResponse.time < 200) {
+//                animate(holder.mReceivedIndicator)
+//            }
+//        }
 
-        val lastResponse = peer.lastResponse
-        if (lastResponse != null) {
-            if (Date().time - lastResponse.time < 200) {
-                animate(holder.mReceivedIndicator)
-            }
-        }
-
-        val lastUTPReceive = peersUTPExchange[peer]?.lastUTPReceive
-        if (lastUTPReceive != null && incoming) {
-            val msSinceLastReceived = Date().time - lastUTPReceive.time
+        val lastReceive = peer.lastResponse
+        if (lastReceive != null){
+            val msSinceLastReceived = Date().time - lastReceive.time
 
             if (msSinceLastReceived > 20 * 1000) {
                 holder.mStatusIndicator!!.background = ContextCompat.getDrawable(context, R.drawable.peer_indicator_red)
             } else if (msSinceLastReceived > 10 * 1000) {
-                holder.mStatusIndicator!!.background = ContextCompat.getDrawable(context, R.drawable.peer_indicator_yellow)
-            } else {
-                holder.mStatusIndicator!!.background = ContextCompat.getDrawable(context, R.drawable.peer_indicator_green)
-            }
-        }
-
-        val lastUTPSent = peersUTPExchange[peer]?.lastUTPSent
-        if (lastUTPSent != null && !incoming) {
-            val msSinceLastSent = Date().time - lastUTPSent.time
-
-            if (msSinceLastSent > 20 * 1000) {
-                holder.mStatusIndicator!!.background = ContextCompat.getDrawable(context, R.drawable.peer_indicator_red)
-            } else if (msSinceLastSent > 10 * 1000) {
                 holder.mStatusIndicator!!.background = ContextCompat.getDrawable(context, R.drawable.peer_indicator_yellow)
             } else {
                 holder.mStatusIndicator!!.background = ContextCompat.getDrawable(context, R.drawable.peer_indicator_green)
