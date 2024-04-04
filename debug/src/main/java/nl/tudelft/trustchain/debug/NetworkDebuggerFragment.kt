@@ -21,6 +21,7 @@ import nl.tudelft.ipv8.IPv4Address
 import nl.tudelft.ipv8.Peer
 import nl.tudelft.trustchain.common.ui.BaseFragment
 import nl.tudelft.trustchain.common.util.viewBinding
+import nl.tudelft.trustchain.debug.databinding.FragmentNetworkDebuggerBinding
 import nl.tudelft.trustchain.debug.databinding.FragmentUtpbatchBinding
 import java.io.ByteArrayOutputStream
 import java.io.IOException
@@ -31,8 +32,8 @@ import java.time.format.DateTimeFormatter
 import java.util.Date
 
 
-class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch), UTPDataFragment {
-    private val binding by viewBinding(FragmentUtpbatchBinding::bind)
+class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger), UTPDataFragment {
+    private val binding by viewBinding(FragmentNetworkDebuggerBinding::bind)
 
     private var sender: UTPSender? = null
     private var receiver: UTPReceiver? = null
@@ -60,6 +61,8 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch), UTPDataFragme
 
         peerDropdown = PeerDropdown(requireContext())
 
+        updateVoteFiles()
+
 
         val policy = ThreadPolicy.Builder().permitAll().build()
         StrictMode.setThreadPolicy(policy)
@@ -68,14 +71,6 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch), UTPDataFragme
             while (isActive) {
                 updateView()
                 delay(100)
-            }
-        }
-        lifecycleScope.launchWhenCreated {
-            getDemoCommunity().punctureChannel.collect { (peer, payload) ->
-                Log.i(
-                    "PunctureFragment",
-                    "Received puncture from $peer on port ${payload.identifier}"
-                )
             }
         }
 
@@ -210,7 +205,7 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch), UTPDataFragme
             }
             val currentTime = LocalDateTime.now()
             val formattedTime = currentTime.format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS"))
-            binding.txtResult.text = oldText + formattedTime + " | " + text
+            binding.txtResult.text = "$oldText$formattedTime | $text"
         }
     }
 
@@ -309,12 +304,6 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch), UTPDataFragme
         return outputStream.toByteArray()
     }
 
-    private fun updateView() {
-        peerDropdown?.updateAvailablePeers(getDemoCommunity().getPeers(), binding.autoCompleteTxt)
-        updateVoteFiles()
-        updatePeerList()
-    }
-
     private fun showInfoDialog() {
         val dialogView = LayoutInflater.from(context).inflate(R.layout.info_popup_layout, null)
 
@@ -326,6 +315,23 @@ class uTPBatchFragment : BaseFragment(R.layout.fragment_utpbatch), UTPDataFragme
 
         val alertDialog = dialogBuilder.create()
         alertDialog.show()
+    }
+
+    private fun updateMyDetails() {
+        val ipv8 = getIpv8()
+        val demo = getDemoCommunity()
+        binding.lanAddress.text = demo.myEstimatedLan.toString()
+        binding.wanAddress.text = demo.myEstimatedWan.toString()
+        binding.connectionType.text = demo.network.wanLog
+            .estimateConnectionType().value
+        binding.peerId.text = PeerListAdapter.getSplitMID(ipv8.myPeer.mid)
+    }
+
+
+    private fun updateView() {
+        peerDropdown?.updateAvailablePeers(getDemoCommunity().getPeers(), binding.autoCompleteTxt)
+        updatePeerList()
+        updateMyDetails()
     }
 }
 

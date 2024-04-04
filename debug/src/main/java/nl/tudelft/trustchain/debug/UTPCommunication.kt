@@ -21,6 +21,7 @@ import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.time.Duration
 import java.time.LocalDateTime
+import java.util.Date
 import java.util.concurrent.TimeUnit
 
 open class UTPCommunication {
@@ -236,3 +237,8 @@ interface UTPDataFragment {
     fun newDataSent(success: Boolean, destinationAddress: String = "", msg: String = "")
 
 }
+
+data class UTPExchange(
+    val lastUTPReceive: Date? = null,
+    val lastUTPSent: Date? = null,
+)
