@@ -23,7 +23,6 @@ import java.time.format.DateTimeFormatter
 class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger), UTPDataFragment {
     private val binding by viewBinding(FragmentNetworkDebuggerBinding::bind)
 
-    private var sender: UTPSender? = null
     private var receiver: UTPReceiver? = null
 
     private var peerList: List<Peer> = emptyList()
@@ -34,7 +33,6 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
     ) {
         super.onViewCreated(view, savedInstanceState)
 
-        sender = UTPSender(this, getDemoCommunity())
         receiver = UTPReceiver(this, getDemoCommunity())
 //        getDemoCommunity().addListener(receiver!!)
 
@@ -57,7 +55,12 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
         }
     }
 
-    override fun newDataReceived(data: ByteArray, source: IPv4Address) {
+    override fun newDataReceived(success: Boolean, data: ByteArray, source: IPv4Address, msg: String) {
+        if (!success) {
+            appendTextToResult(msg)
+            return
+        }
+
         // update peer's last received time for UTP
         val peer = peerList.find { it.wanAddress.ip == source.ip }
         if (peer != null) {
@@ -73,28 +76,7 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
     }
 
     override fun newDataSent(success: Boolean, destinationAddress: String, msg: String) {
-        if (success) {
-            if (destinationAddress != "") {
-                val destinationIP: String = destinationAddress.split(":")[0].removePrefix("/")
-                val destinationPort: String = destinationAddress.split(":")[1]
-                appendTextToResult("Sent data to $destinationIP:$destinationPort")
-
-                // update peer's last sent time for UTP
-                val peer = peerList.find { it.wanAddress.ip == destinationIP }
-                if (peer != null) {
-                    Log.i("UTP", "Sent data to known $destinationIP:$destinationPort")
-                } else {
-                    Log.e("UTP", "Sent data to unknown peer")
-                }
-
-
-
-            } else {
-                appendTextToResult(msg)
-            }
-        } else {
-            appendTextToResult(msg)
-        }
+        appendTextToResult("Unexpectedly sending data. SHOULD NOT HAPPEN!")
     }
 
     private fun setTextToResult(text: String) {

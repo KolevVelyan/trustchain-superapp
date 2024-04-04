@@ -3,8 +3,8 @@ package nl.tudelft.trustchain.debug
 import android.app.AlertDialog
 import android.app.Dialog
 import android.content.Context
+import android.content.DialogInterface
 import android.os.Bundle
-import android.util.Log
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
@@ -36,7 +36,8 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
         val dialogBuilder = AlertDialog.Builder(requireContext())
             .setView(dialogView)
             .setTitle("Send Data through UTP")
-            .setPositiveButton("OK") { _,_ -> }
+            .setCancelable(false)
+            .setNeutralButton("Close") { _, _ -> }
 
 
         sender = UTPSender(this@UTPSendDialogFragment, community)
@@ -72,6 +73,15 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
         return dialogBuilder.create()
     }
 
+    override fun onDismiss(dialog: DialogInterface) {
+        super.onDismiss(dialog)
+        val nSender = sender
+        if (nSender != null && nSender.isSending()) {
+            // _sender.cancelSend()
+            Toast.makeText(requireContext(), "Current UTP transfer has been stopped", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     override fun debugInfo(info: String, toast: Boolean, reset: Boolean) {
         if (reset) {
             setTextToResult(info)
@@ -80,20 +90,18 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
         }
     }
 
-    override fun newDataReceived(data: ByteArray, source: IPv4Address) {
-        Log.e("UTP", "Received data from unknown peer")
+    override fun newDataReceived(success: Boolean, data: ByteArray, source: IPv4Address, msg: String) {
+        appendTextToResult("Unexpectedly received data. SHOULD NOT HAPPEN!")
     }
 
     override fun newDataSent(success: Boolean, destinationAddress: String, msg: String) {
-        if (success) {
-            if (destinationAddress != "") {
-                appendTextToResult("Sent data to $destinationAddress")
-                appendTextToResult("peer $otherPeer.mid")
-                return
-            }
+        if (!success || destinationAddress == "") {
+            appendTextToResult(msg)
+            return
         }
 
-        appendTextToResult(msg)
+        appendTextToResult("Sent data to $destinationAddress")
+        appendTextToResult("peer $otherPeer.mid")
     }
 
     private fun validateDataSize(): Boolean {

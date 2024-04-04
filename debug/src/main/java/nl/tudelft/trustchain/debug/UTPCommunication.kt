@@ -85,13 +85,24 @@ class UTPReceiver(
 
     override fun onUTPSendRequest(sender: IPv4Address, dataSize: Int?) {
         if (isReceiving) {
+            uTPDataFragment.newDataReceived(false, byteArrayOf(), IPv4Address("0.0.0.0", 0), "Already receiving. Wait for previous receive to finish!")
+            return
+        }
+
+        if (sender.ip.isEmpty() || sender.ip == "0.0.0.0") {
+            uTPDataFragment.newDataReceived(false, byteArrayOf(), sender, "Invalid sender address: ${sender.ip}. Stopping receiver.")
+            return
+        }
+
+        if (dataSize == 0 || dataSize == null) {
+            uTPDataFragment.newDataReceived(false, byteArrayOf(), sender, "Invalid data size received from sender. Stopping receiver.")
             return
         }
 
         isReceiving = true
 
         try {
-            if (dataSize == 0 || dataSize == null) {
+            if (dataSize == 0) {
                 throw IllegalArgumentException("Invalid data size received from sender")
             }
 
@@ -140,7 +151,7 @@ class UTPReceiver(
             channel.close()
             uTPDataFragment.debugInfo("Channel closed")
 
-            uTPDataFragment.newDataReceived(data, sender)
+            uTPDataFragment.newDataReceived(true, data, sender)
         } catch (e: Exception) {
             e.printStackTrace(System.err)
             uTPDataFragment.debugInfo("Error: ${e.message}")
@@ -164,6 +175,17 @@ class UTPSender(
 
     fun sendData(peerToSend: Peer, dataToSend: ByteArray) {
         if (isSending) {
+            uTPDataFragment.newDataSent(false, "","Already sending. Wait for previous send to finish!")
+            return
+        }
+
+        if (peerToSend.address.toString().isEmpty() || peerToSend.address.toString() == "0.0.0.0"){
+            uTPDataFragment.newDataSent(false, "","Invalid peer address: ${peerToSend.address.toString()}. Stopping sender.")
+            return
+        }
+
+        if (dataToSend.isEmpty()) {
+            uTPDataFragment.newDataSent(false, peerToSend.address.toString(),"No data to send. Stopping sender.")
             return
         }
 
@@ -232,7 +254,7 @@ class UTPSender(
 interface UTPDataFragment {
     fun debugInfo(info: String, toast: Boolean = false, reset: Boolean = false)
 
-    fun newDataReceived(data: ByteArray, source: IPv4Address)
+    fun newDataReceived(success: Boolean, data: ByteArray, source: IPv4Address, msg: String = "")
 
     fun newDataSent(success: Boolean, destinationAddress: String = "", msg: String = "")
 
