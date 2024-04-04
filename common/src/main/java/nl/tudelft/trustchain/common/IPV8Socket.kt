@@ -8,12 +8,15 @@ import nl.tudelft.ipv8.messaging.Packet
 import nl.tudelft.ipv8.messaging.Serializable
 import nl.tudelft.ipv8.messaging.deserializeRaw
 import nl.tudelft.ipv8.util.hexToBytes
+import java.io.IOException
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.util.Date
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Semaphore
+import java.util.concurrent.SynchronousQueue
 
 class IPV8Socket(val community: Community) : DatagramSocket(), EndpointListener {
     val UTP_RAW_DATA = 254
@@ -22,8 +25,7 @@ class IPV8Socket(val community: Community) : DatagramSocket(), EndpointListener 
 
     // create a semaphore to block the receive method until the community.endpoint receives a packet and notifies the IPV8Socket listener
     val readSemaphore = Semaphore(0)
-    var curData: UTPPayload? = null;
-    var curAddr: IPv4Address? = null;
+    var messageQueue = ConcurrentLinkedQueue<Pair<IPv4Address, UTPPayload>>();
     init {
         community.endpoint.addListener(this)
     }
@@ -43,13 +45,17 @@ class IPV8Socket(val community: Community) : DatagramSocket(), EndpointListener 
         try {
             readSemaphore.acquire()
         } catch (e: InterruptedException) {
-            e.printStackTrace()
+            throw IOException("Testing Haha")
         }
+        val packet = messageQueue.poll();
+        val address = packet?.first;
+        val payload = packet?.second;
 
         // set the address, port and data of the p
-        p?.socketAddress = InetSocketAddress(InetAddress.getByName(curAddr!!.ip), curAddr!!.port)
-        p?.length = curData!!.payload.size
-        p?.data = curData!!.payload
+        p?.socketAddress = InetSocketAddress(InetAddress.getByName(address!!.ip), address.port)
+        p?.address = InetAddress.getByName(address.ip);
+        p?.length = payload!!.payload.size
+        p?.data = payload.payload
     }
 
     override fun send(datagramPacket: DatagramPacket?) {
@@ -86,8 +92,9 @@ class IPV8Socket(val community: Community) : DatagramSocket(), EndpointListener 
 
         if (msgId == UTP_RAW_DATA) {
             // we got a UTP_RAW_DATA packet, deserialize it to get the UTPPayload object with the DatagramPacket
-            curData = packet.getPayload(UTPPayload.Deserializer);
-            curAddr = sourceAddress as IPv4Address;
+            val payload = packet.getPayload(UTPPayload.Deserializer);
+            val address = sourceAddress as IPv4Address;
+            messageQueue.add(Pair(address, payload));
             readSemaphore.release()
         }
     }
