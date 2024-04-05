@@ -23,27 +23,31 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Arrays
 
-
+/**
+ * Dialog fragment that sends data through UTP
+ */
 class UTPSendDialogFragment(private val otherPeer: Peer, private val community: Community)
         : DialogFragment(), UTPDataFragment {
-    private var binding: FragmentUtpSendBinding? = null
+    private var binding: FragmentUtpSendBinding? = null // binding for the fragments view
 
-    private var sender: UTPSender? = null
-    private var chosenVote: String = ""
-    private var availableVotes : Array<String> = emptyArray()
+    // the sender object that sends the data
+    private var sender = UTPSender(this@UTPSendDialogFragment, community)
+
+    private var chosenVote: String = "" // the type of data/vote the user wants to send
+    private var availableVotes : Array<String> = emptyArray() // the list of available votes
+
+    // This method is called when the dialog is created
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
+        // inflate the view to get the correct layout
         val dialogView = layoutInflater.inflate(R.layout.fragment_utp_send, null)
         binding = FragmentUtpSendBinding.bind(dialogView)
 
+        // make the dialog
         val dialogBuilder = AlertDialog.Builder(requireContext())
             .setView(dialogView)
             .setTitle("Send Data through UTP")
             .setCancelable(false)
             .setNeutralButton("Close") { _, _ -> }
-
-
-        sender = UTPSender(this@UTPSendDialogFragment, community)
-
 
         lifecycleScope.launchWhenCreated {
             while (isActive) {
@@ -52,14 +56,18 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
             }
         }
 
+
+        // handle click of Send button
         binding!!.btnSend.setOnClickListener {
-            if (sender!!.isSending()) {
+            // do not send if already sending
+            if (sender.isSending()) {
                 Toast.makeText(
                     requireContext(),
                     "Already sending. Wait for previous send to finish!",
                     Toast.LENGTH_SHORT
                 ).show()
             } else if (validateDataSize()) {
+                // start sender in new thread
                 val thread = Thread {
                     startSender()
                 }
@@ -70,15 +78,16 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
         return dialogBuilder.create()
     }
 
+    // This method is called when the dialog is dismissed
     override fun onDismiss(dialog: DialogInterface) {
         super.onDismiss(dialog)
-        val nSender = sender
-        if (nSender != null && nSender.isSending()) {
-            // _sender.cancelSend()
+        // when closing the dialog if the sender is still sending, inform user that the transfer has been stopped
+        if (sender.isSending()) {
             Toast.makeText(requireContext(), "UTP transfer to ${otherPeer.address} has been stopped", Toast.LENGTH_SHORT).show()
         }
     }
 
+    // Get debug information from the sender
     override fun debugInfo(info: String, toast: Boolean, reset: Boolean) {
         if (reset) {
             setTextToResult(info)
@@ -87,19 +96,24 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
         }
     }
 
+    // Get new data received from the sender (should not happen as we have only started a sender)
     override fun newDataReceived(success: Boolean, data: ByteArray, source: IPv4Address, msg: String) {
         appendTextToResult("Unexpectedly received data. SHOULD NOT HAPPEN!")
     }
 
+    // Handle confirmation of the data being sent
     override fun newDataSent(success: Boolean, destinationAddress: String, msg: String) {
+        // if unsuccessful or no destination address, display error message
         if (!success || destinationAddress == "") {
             appendTextToResult(msg)
             return
         }
 
+        // if successful, display success message
         appendTextToResult("Sent data to $destinationAddress")
     }
 
+    // Validate the data size entered by the user
     private fun validateDataSize(): Boolean {
         val context: Context = requireContext()
 
@@ -111,27 +125,33 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
         return true
     }
 
+    // Send the chosen data to the {otherPeer}
     private fun startSender() {
         val byteData: ByteArray
 
+        // get data based on the user's choice
         if (chosenVote == ARG_CUSTOM_SIZE || chosenVote.isEmpty()) {
             val dataSizeText = binding!!.dataSize.text.toString()
 
             // should not occur if validated beforehand
             if (dataSizeText.isEmpty()) throw IllegalArgumentException("invalid data size")
 
+            // if user chose custom data size then fill the data with "o"
             byteData = ByteArray(dataSizeText.toInt() * 1024)
             Arrays.fill(
                 byteData,
                 0x6F.toByte()
-            ) // currently data is just the character "o" over and over
+            )
         } else {
+            // get the data from the chosen vote/file
             byteData = readCsvToByteArray(chosenVote)
         }
 
-        sender?.sendData(otherPeer, byteData)
+        // send the data to the other peer
+        sender.sendData(otherPeer, byteData)
     }
 
+    // Get the list of available votes/files
     private fun getFileNames(): Array<String> {
         val csvFileNames = mutableListOf<String>()
         try {
@@ -152,6 +172,7 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
         return csvFileNames.toTypedArray()
     }
 
+    // Update the list of available votes/files
     private fun updateVoteFiles() {
         val voteFiles = getFileNames()
         if (!voteFiles.contentEquals(availableVotes)) {
@@ -181,22 +202,7 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
         }
     }
 
-    private fun setTextToResult(text: String) {
-        appendTextToResult(text, false)
-    }
-
-    private fun appendTextToResult(text: String, newline: Boolean = true) {
-        activity?.runOnUiThread {
-            var oldText = binding!!.txtResult.text.toString() + "\n"
-            if (binding!!.txtResult.text.isEmpty() || !newline) {
-                oldText = ""
-            }
-            val currentTime = LocalDateTime.now()
-            val formattedTime = currentTime.format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS"))
-            binding!!.txtResult.text = "$oldText$formattedTime | $text"
-        }
-    }
-
+    // Get the content of the chosen vote/file
     private fun readCsvToByteArray(fileName: String): ByteArray {
         val inputStream = requireContext().assets.open(fileName)
         val outputStream = ByteArrayOutputStream()
@@ -209,6 +215,26 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
         return outputStream.toByteArray()
     }
 
+    // Update the output text and reset it
+    private fun setTextToResult(text: String) {
+        appendTextToResult(text, false)
+    }
+
+    // Append the output text to the result (if newline is false, reset the text)
+    private fun appendTextToResult(text: String, newline: Boolean = true) {
+        activity?.runOnUiThread {
+            var oldText = binding!!.txtResult.text.toString() + "\n"
+            if (binding!!.txtResult.text.isEmpty() || !newline) {
+                oldText = ""
+            }
+            val currentTime = LocalDateTime.now()
+            // add time in front of the text
+            val formattedTime = currentTime.format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS"))
+            binding!!.txtResult.text = "$oldText$formattedTime | $text"
+        }
+    }
+
+    // Update the peer details on the screen
     private fun updatePeerDetails() {
         binding!!.peerId.text = PeerListAdapter.getSplitMID(otherPeer.mid)
         binding!!.lanAddress.text = otherPeer.lanAddress.toString()

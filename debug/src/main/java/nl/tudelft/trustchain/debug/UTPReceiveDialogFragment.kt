@@ -16,30 +16,33 @@ import nl.tudelft.trustchain.debug.databinding.FragmentUtpReceiveBinding
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-
+/**
+ * Dialog fragment that receives data through UTP
+ */
 class UTPReceiveDialogFragment(private val otherPeer: Peer,
                                private val community: Community,
                                private val dataSize: Int?)
         : DialogFragment(), UTPDataFragment {
-    private var binding: FragmentUtpReceiveBinding? = null
+    private var binding: FragmentUtpReceiveBinding? = null // binding for the fragments view
 
-    private var receiver: UTPReceiver? = null
+    // the receiver object that receives the data
+    private var receiver = UTPReceiver(this@UTPReceiveDialogFragment, community)
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
+        // inflate the view to get the correct layout
         val dialogView = layoutInflater.inflate(R.layout.fragment_utp_receive, null)
         binding = FragmentUtpReceiveBinding.bind(dialogView)
 
+        // make the dialog
         val dialogBuilder = AlertDialog.Builder(requireContext())
             .setView(dialogView)
             .setTitle("Receive Data through UTP")
             .setCancelable(false)
             .setNeutralButton("Close") { _, _ -> }
 
-
-        receiver = UTPReceiver(this@UTPReceiveDialogFragment, community)
-
         lifecycleScope.launchWhenCreated {
+            // start receiver in new thread
             val thread = Thread {
-                receiver!!.receiveData(otherPeer.address, dataSize)
+                receiver.receiveData(otherPeer.address, dataSize)
             }
             thread.start()
 
@@ -52,15 +55,16 @@ class UTPReceiveDialogFragment(private val otherPeer: Peer,
         return dialogBuilder.create()
     }
 
+    // This method is called when the dialog is dismissed
     override fun onDismiss(dialog: DialogInterface) {
         super.onDismiss(dialog)
-        val nReceiver = receiver
-
-        if (nReceiver != null && nReceiver.isReceiving()) {
+        // when closing the dialog if the receiver is still receiving, inform user that the transfer has been stopped
+        if (receiver.isReceiving()) {
             Toast.makeText(requireContext(), "UTP transfer from ${otherPeer.address} has been stopped", Toast.LENGTH_SHORT).show()
         }
     }
 
+    // Get debug information from the receiver
     override fun debugInfo(info: String, toast: Boolean, reset: Boolean) {
         if (reset) {
             setTextToResult(info)
@@ -69,25 +73,39 @@ class UTPReceiveDialogFragment(private val otherPeer: Peer,
         }
     }
 
+    // Receive new data form a sender
     override fun newDataReceived(success: Boolean, data: ByteArray, source: IPv4Address, msg: String) {
+        // if unsuccessful, display the error message
         if (!success) {
             appendTextToResult(msg)
             return
         }
 
+        // otherwise display the data
         val dataSize = data.size
-        val dataSizeInKB = dataSize / 1024
-        appendTextToResult("Received data from $source with size $dataSizeInKB KB")
+        appendTextToResult("Received ${dataSize/1024}Kb from ${source}:")
+        appendTextToResult(convertDataToUTF8(data))
     }
 
+    // Handle confirmation of the data being sent (should not happen as we have only started a receiver)
     override fun newDataSent(success: Boolean, destinationAddress: String, msg: String) {
         appendTextToResult("Unexpectedly sending data. SHOULD NOT HAPPEN!")
     }
 
+    // Convert data to UTF-8 string (max 200 characters)
+    private fun convertDataToUTF8(data: ByteArray): String {
+        val maxCharToPrint = 200
+        val utf8String = String(data, Charsets.UTF_8)
+
+        return if (utf8String.length > maxCharToPrint) utf8String.substring(0, maxCharToPrint) else utf8String
+    }
+
+    // Update the output text and reset it
     private fun setTextToResult(text: String) {
         appendTextToResult(text, false)
     }
 
+    // Append the output text to the result (if newline is false, reset the text)
     private fun appendTextToResult(text: String, newline: Boolean = true) {
         activity?.runOnUiThread {
             var oldText = binding!!.txtResult.text.toString() + "\n"
@@ -95,11 +113,13 @@ class UTPReceiveDialogFragment(private val otherPeer: Peer,
                 oldText = ""
             }
             val currentTime = LocalDateTime.now()
+            // add time in front of the text
             val formattedTime = currentTime.format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS"))
             binding!!.txtResult.text = "$oldText$formattedTime | $text"
         }
     }
 
+    // Update the peer details on the screen
     private fun updatePeerDetails() {
         binding!!.peerId.text = PeerListAdapter.getSplitMID(otherPeer.mid)
         binding!!.lanAddress.text = otherPeer.lanAddress.toString()

@@ -24,14 +24,6 @@ import java.time.LocalDateTime
 
  */
 open class UTPCommunication {
-    // Convert data to UTF-8 string (max 200 characters)
-    fun convertDataToUTF8(data: ByteArray): String {
-        val maxCharToPrint = 200
-        val utf8String = String(data, Charsets.UTF_8)
-
-        return if (utf8String.length > maxCharToPrint) utf8String.substring(0, maxCharToPrint) else utf8String
-    }
-
     // Get the speed of the transfer in Kb/s
     fun calculateTimeStats(startTime: LocalDateTime, dataAmount: Int): String {
         val endTime = LocalDateTime.now()
@@ -142,8 +134,6 @@ class UTPReceiver(
             buffer.get(data)
             val timeStats = calculateTimeStats(startTime, dataSize)
             uTPDataFragment.debugInfo("Received ${data.size/1024} Kb of data in $timeStats")
-
-            uTPDataFragment.debugInfo("Received data: ${convertDataToUTF8(data)}")
 
             channel.close()
             uTPDataFragment.debugInfo("Channel closed")
