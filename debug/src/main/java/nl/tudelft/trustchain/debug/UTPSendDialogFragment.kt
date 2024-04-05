@@ -133,15 +133,23 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
         if (chosenVote == ARG_CUSTOM_SIZE || chosenVote.isEmpty()) {
             val dataSizeText = binding!!.dataSize.text.toString()
 
-            // should not occur if validated beforehand
-            if (dataSizeText.isEmpty()) throw IllegalArgumentException("invalid data size")
-
             // if user chose custom data size then fill the data with "o"
-            byteData = ByteArray(dataSizeText.toInt() * 1024)
-            Arrays.fill(
-                byteData,
-                0x6F.toByte()
-            )
+            try {
+                byteData = ByteArray(dataSizeText.toInt() * 1024)
+                Arrays.fill(
+                    byteData,
+                    0x6F.toByte()
+                )
+            } catch (e: Throwable) {
+                activity?.runOnUiThread {
+                    Toast.makeText(
+                        requireContext(),
+                        "Data size too big. Please choose a smaller size.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+                return
+            }
         } else {
             // get the data from the chosen vote/file
             byteData = readCsvToByteArray(chosenVote)
