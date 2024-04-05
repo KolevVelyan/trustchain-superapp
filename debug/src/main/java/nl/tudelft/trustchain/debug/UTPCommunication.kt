@@ -1,8 +1,5 @@
 package nl.tudelft.trustchain.debug
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.async
-import kotlinx.coroutines.withTimeout
 import net.utp4j.channels.UtpServerSocketChannel
 import net.utp4j.channels.UtpSocketChannel
 import net.utp4j.channels.UtpSocketState
@@ -22,7 +19,6 @@ import java.nio.ByteBuffer
 import java.time.Duration
 import java.time.LocalDateTime
 import java.util.Date
-import java.util.concurrent.TimeUnit
 
 open class UTPCommunication {
     fun convertDataToUTF8(data: ByteArray): String {
@@ -97,6 +93,10 @@ class UTPReceiver(
 
             // socket is defined by the sender's ip and chosen sender port
             val socket = InetSocketAddress(InetAddress.getByName(sender.ip), sender.port)
+
+            this.socket.statusFunction = fun(dataSent: Long, dataReceived: Long): Unit {
+                uTPDataFragment.debugInfo("Data sent: $dataSent; Data received: $dataReceived");
+            };
 
             // instantiate client to receive data
             val c = UtpSocketChannelImpl()
@@ -175,6 +175,10 @@ class UTPSender(
         val payload = UTPSendPayload(dataToSend.size)
         val packet = community.serializePacket(DemoCommunity.MessageId.UTP_SEND_REQUEST, payload, sign = false)
         community.endpoint.send(peerToSend.address, packet)
+
+        this.socket.statusFunction = fun(dataSent: Long, dataReceived: Long): Unit {
+            uTPDataFragment.debugInfo("Data sent: $dataSent; Data received: $dataReceived");
+        };
 
         try {
             // instantiate socket to send data (it waits for client to through socket first)

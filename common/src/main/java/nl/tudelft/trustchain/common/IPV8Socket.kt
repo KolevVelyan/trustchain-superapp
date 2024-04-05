@@ -28,6 +28,11 @@ class IPV8Socket(val community: Community) : DatagramSocket(), EndpointListener 
     val readSemaphore = Semaphore(0);
     var messageQueue = ConcurrentLinkedQueue<Pair<IPv4Address, UTPPayload>>();
     val peerMap = HashMap<IPv4Address, Peer>();
+
+    lateinit var statusFunction: (Long, Long) -> Unit;
+    private var dataSent: Long = 0;
+    private var dataRecieved: Long = 0;
+
     init {
         community.endpoint.addListener(this)
     }
@@ -58,6 +63,10 @@ class IPV8Socket(val community: Community) : DatagramSocket(), EndpointListener 
         p?.address = InetAddress.getByName(address.ip);
         p?.length = payload!!.payload.size
         p?.data = payload.payload
+
+        // Update recieved tracker
+        dataRecieved += payload.payload.size;
+        statusFunction(dataSent, dataRecieved);
     }
 
     override fun send(datagramPacket: DatagramPacket?) {
@@ -86,6 +95,10 @@ class IPV8Socket(val community: Community) : DatagramSocket(), EndpointListener 
         }
 
         community.endpoint.send(peer!!, packet)
+
+        // Udpate status
+        dataSent += packet.size;
+        statusFunction(dataSent, dataRecieved);
     }
 
     override fun onPacket(packet: Packet) {
