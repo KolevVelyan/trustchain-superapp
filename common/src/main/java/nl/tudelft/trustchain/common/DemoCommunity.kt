@@ -84,15 +84,13 @@ class DemoCommunity : Community() {
     private fun onUTPSendRequest(packet: Packet) {
         val payload = packet.getPayload(UTPSendPayload.Deserializer)
         listeners.forEach {
-            val thread = Thread {
-                it.onUTPSendRequest(packet.source as IPv4Address, payload.dataSize)
-            }
-            thread.start()
+            it.onUTPSendRequest(packet.source as IPv4Address, payload.dataSize)
         }
     }
 
 }
 
+// use this interface when someone is trying to send you something and you want to receive the UTP data
 interface OnUTPSendRequestListener {
     fun onUTPSendRequest(sender: IPv4Address, dataSize: Int?)
 

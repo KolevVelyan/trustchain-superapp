@@ -16,14 +16,16 @@ import nl.tudelft.ipv8.Peer
 import nl.tudelft.trustchain.common.ui.BaseFragment
 import nl.tudelft.trustchain.common.util.viewBinding
 import nl.tudelft.trustchain.debug.databinding.FragmentNetworkDebuggerBinding
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
+import nl.tudelft.trustchain.common.OnUTPSendRequestListener
 
 
-class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger), UTPDataFragment {
+class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger),
+    UTPDialogListener, OnUTPSendRequestListener {
     private val binding by viewBinding(FragmentNetworkDebuggerBinding::bind)
 
-    private var receiver: UTPReceiver? = null
+    private var sentDialogOpen = false
+
+    private var receivingDialog: UTPReceiveDialogFragment? = null
 
     private var peerList: List<Peer> = emptyList()
 
@@ -33,8 +35,7 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
     ) {
         super.onViewCreated(view, savedInstanceState)
 
-        receiver = UTPReceiver(this, getDemoCommunity())
-//        getDemoCommunity().addListener(receiver!!)
+        getDemoCommunity().addListener(this)
 
         val policy = ThreadPolicy.Builder().permitAll().build()
         StrictMode.setThreadPolicy(policy)
@@ -47,51 +48,55 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
         }
     }
 
-    override fun debugInfo(info: String, toast: Boolean, reset: Boolean) {
-        if (reset) {
-            setTextToResult(info)
-        } else {
-            appendTextToResult(info)
-        }
+    override fun onUTPDialogDismissed() {
+        sentDialogOpen = false
     }
 
-    override fun newDataReceived(success: Boolean, data: ByteArray, source: IPv4Address, msg: String) {
-        if (!success) {
-            appendTextToResult(msg)
+    override fun onUTPSendRequest(sender: IPv4Address, dataSize: Int?) {
+        if (sentDialogOpen) {
+            activity?.runOnUiThread {
+                Toast.makeText(
+                    requireContext(),
+                    "Someone want to send you UTP data but cannot do so while you have a send dialog open.",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+            Log.w("UTP", "Cannot receive while send dialog is open")
             return
         }
 
         // update peer's last received time for UTP
-        val peer = peerList.find { it.wanAddress.ip == source.ip }
-        if (peer != null) {
-            Log.i("UTP", "Received data from known ${source.ip}")
-        } else {
-            Log.e("UTP", "Received data from unknown peer")
+        val peer = peerList.find { it.address.ip == sender.ip }
+        if (peer == null) {
+            activity?.runOnUiThread {
+                Toast.makeText(
+                    requireContext(),
+                    "Request to get the data of an unknown peer (${sender.ip}:${sender.port}) was received. Ignoring.",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+            Log.e("UTP", "Received send request from unknown peer ${sender.ip}:${sender.port}")
+            return
         }
 
+        // close any open receiving dialog
+        receivingDialog?.dismiss()
 
-        val dataSize = data.size
-        val dataSizeInKB = dataSize / 1024
-        appendTextToResult("Received data from $source with size $dataSizeInKB KB")
-    }
-
-    override fun newDataSent(success: Boolean, destinationAddress: String, msg: String) {
-        appendTextToResult("Unexpectedly sending data. SHOULD NOT HAPPEN!")
-    }
-
-    private fun setTextToResult(text: String) {
-        appendTextToResult(text, false)
-    }
-
-    private fun appendTextToResult(text: String, newline: Boolean = true) {
-        activity?.runOnUiThread {
-            var oldText = binding.txtResult.text.toString() + "\n"
-            if (binding.txtResult.text.isEmpty() || !newline) {
-                oldText = ""
+        if (peer.address.ip == "0.0.0.0") {
+            Toast.makeText(
+                context,
+                "Not allowed to receive data from ${peer.address.ip}",
+                Toast.LENGTH_SHORT
+            ).show()
+        } else {
+            try {
+                val utpDialog = UTPReceiveDialogFragment(peer, getDemoCommunity(), this, dataSize)
+                utpDialog.show(parentFragmentManager, UTPReceiveDialogFragment.TAG)
+                receivingDialog = utpDialog
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Log.e(UTPReceiveDialogFragment.TAG, "Error: ${e.message}")
             }
-            val currentTime = LocalDateTime.now()
-            val formattedTime = currentTime.format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS"))
-            binding.txtResult.text = "$oldText$formattedTime | $text"
         }
     }
 
@@ -108,8 +113,15 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
             if (peer.address.ip == "0.0.0.0") {
                 Toast.makeText(context, "Not allowed to send data to ${peer.address.ip}", Toast.LENGTH_SHORT).show()
             } else {
-                val utpDialog = UTPSendDialogFragment(peer, getDemoCommunity()) as DialogFragment
-                utpDialog.show(parentFragmentManager, UTPSendDialogFragment.TAG)
+                sentDialogOpen = try {
+                    val utpDialog = UTPSendDialogFragment(peer, getDemoCommunity(), this) as DialogFragment
+                    utpDialog.show(parentFragmentManager, UTPSendDialogFragment.TAG)
+                    true
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    Log.e(UTPSendDialogFragment.TAG, "Error: ${e.message}")
+                    false
+                }
             }
         }
 
@@ -141,6 +153,7 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
     private fun updateView() {
         updatePeerList()
         updateMyDetails()
+        binding.txtResult.text = receivingDialog.toString()
     }
 }
 

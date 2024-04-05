@@ -23,7 +23,11 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Arrays
 
-class UTPSendDialogFragment(private val otherPeer: Peer, private val community: Community) : DialogFragment(), UTPDataFragment {
+
+class UTPSendDialogFragment(private val otherPeer: Peer,
+                            private val community: Community,
+                            private val utpDialogListener: UTPDialogListener)
+        : DialogFragment(), UTPDataFragment {
     private var binding: FragmentUtpSendBinding? = null
 
     private var sender: UTPSender? = null
@@ -44,7 +48,6 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
 
 
         lifecycleScope.launchWhenCreated {
-
             while (isActive) {
                 updateView()
                 delay(100)
@@ -52,9 +55,6 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
         }
 
         binding!!.btnSend.setOnClickListener {
-//            if (receiver!!.isReceiving()) {
-//                Toast.makeText(requireContext(), "Cannot send while receiving.", Toast.LENGTH_SHORT).show()
-//            } else
             if (sender!!.isSending()) {
                 Toast.makeText(
                     requireContext(),
@@ -62,7 +62,6 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
                     Toast.LENGTH_SHORT
                 ).show()
             } else if (validateDataSize()) {
-                // neither receiving nor sending so start sending
                 val thread = Thread {
                     startSender()
                 }
@@ -78,8 +77,10 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
         val nSender = sender
         if (nSender != null && nSender.isSending()) {
             // _sender.cancelSend()
-            Toast.makeText(requireContext(), "Current UTP transfer has been stopped", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), "UTP transfer to ${otherPeer.address} has been stopped", Toast.LENGTH_SHORT).show()
         }
+
+        utpDialogListener.onUTPDialogDismissed()
     }
 
     override fun debugInfo(info: String, toast: Boolean, reset: Boolean) {
@@ -101,7 +102,6 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
         }
 
         appendTextToResult("Sent data to $destinationAddress")
-        appendTextToResult("peer $otherPeer.mid")
     }
 
     private fun validateDataSize(): Boolean {
@@ -215,13 +215,14 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
 
     private fun updatePeerDetails() {
         binding!!.peerId.text = PeerListAdapter.getSplitMID(otherPeer.mid)
-        binding!!.address.text = otherPeer.address.toString()
+        binding!!.lanAddress.text = otherPeer.lanAddress.toString()
+        binding!!.wanAddress.text = otherPeer.wanAddress.toString()
     }
 
     private fun updateView() {
         updateVoteFiles()
         updatePeerDetails()
-//        binding!!.txtDebug.text = "Debug Info: ${otherPeer.mid}"
+//        binding!!.txtDebug.text = "Debug Info: ${otherPeer}"
     }
     companion object {
         const val TAG = "UTPSendDialogFragment"

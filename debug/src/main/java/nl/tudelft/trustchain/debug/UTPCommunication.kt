@@ -1,8 +1,5 @@
 package nl.tudelft.trustchain.debug
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.async
-import kotlinx.coroutines.withTimeout
 import net.utp4j.channels.UtpServerSocketChannel
 import net.utp4j.channels.UtpSocketChannel
 import net.utp4j.channels.UtpSocketState
@@ -12,7 +9,6 @@ import nl.tudelft.ipv8.Community
 import nl.tudelft.ipv8.IPv4Address
 import nl.tudelft.trustchain.common.DemoCommunity
 import nl.tudelft.trustchain.common.IPV8Socket
-import nl.tudelft.trustchain.common.OnUTPSendRequestListener
 import java.io.IOException
 import nl.tudelft.ipv8.Peer
 import nl.tudelft.trustchain.common.messaging.UTPSendPayload
@@ -21,8 +17,6 @@ import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.time.Duration
 import java.time.LocalDateTime
-import java.util.Date
-import java.util.concurrent.TimeUnit
 
 open class UTPCommunication {
     fun convertDataToUTF8(data: ByteArray): String {
@@ -75,7 +69,7 @@ open class UTPCommunication {
 class UTPReceiver(
     private val uTPDataFragment: UTPDataFragment,
     community: Community
-) : UTPCommunication(), OnUTPSendRequestListener {
+) : UTPCommunication() {
     private var isReceiving: Boolean = false
     private var socket: IPV8Socket = IPV8Socket(community);
 
@@ -83,7 +77,7 @@ class UTPReceiver(
         return isReceiving
     }
 
-    override fun onUTPSendRequest(sender: IPv4Address, dataSize: Int?) {
+    fun receiveData(sender: IPv4Address, dataSize: Int?) {
         if (isReceiving) {
             uTPDataFragment.newDataReceived(false, byteArrayOf(), IPv4Address("0.0.0.0", 0), "Already receiving. Wait for previous receive to finish!")
             return
@@ -260,7 +254,6 @@ interface UTPDataFragment {
 
 }
 
-data class UTPExchange(
-    val lastUTPReceive: Date? = null,
-    val lastUTPSent: Date? = null,
-)
+interface UTPDialogListener {
+    fun onUTPDialogDismissed()
+}

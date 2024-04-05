@@ -11,7 +11,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Details of Receiving Peer"
+                android:text="Details of Sending Peer"
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
@@ -78,53 +78,6 @@
             android:text=""/>
     </LinearLayout>
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="Data Input Options"
-        android:textSize="16sp"
-        android:textStyle="bold" />
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:id="@+id/textViewVotes"
-        android:text="Input Location/Type"
-        android:textSize="14sp" />
-
-    <com.google.android.material.textfield.TextInputLayout
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:theme="@style/DropDownA">
-
-        <com.google.android.material.textfield.MaterialAutoCompleteTextView
-            android:id="@+id/auto_complete_votes"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:inputType="none"
-            tools:ignore="SpeakableTextPresentCheck" />
-    </com.google.android.material.textfield.TextInputLayout>
-    <TextView
-        android:id="@+id/textView"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Amount of data in transfer (Kb)"
-        android:textSize="14sp" />
-    <EditText
-        android:id="@+id/dataSize"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textSize="14sp"
-        android:hint="0"
-        android:inputType="number"
-        tools:ignore="TouchTargetSizeCheck" />
-    <Button
-        android:id="@+id/btnSend"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textSize="14sp"
-        android:text="Send" />
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
