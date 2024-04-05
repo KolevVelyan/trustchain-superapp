@@ -25,7 +25,7 @@ import java.util.concurrent.Semaphore
  */
 class IPV8Socket(val community: Community) : DatagramSocket(), EndpointListener {
     // Message ID for the URT raw data (used in the IPv8 header)
-    private val UTP_RAW_DATA = 254
+    private val msgIdUTPRawData = 254
 
     // Prefix for the IPV8 protocol
     private val prefix: ByteArray =
@@ -100,7 +100,7 @@ class IPV8Socket(val community: Community) : DatagramSocket(), EndpointListener 
 
         // Serializing DatagramPacket to byte array
         val payload = UTPPayload(datagramPacket)
-        val packet = this.community.serializePacket(UTP_RAW_DATA, payload, sign = false)
+        val packet = this.community.serializePacket(msgIdUTPRawData, payload, sign = false)
 
         // Defining the peer from the address and port in the datagram
         val address = IPv4Address(datagramPacket.address.hostAddress!!, datagramPacket.port)
@@ -153,7 +153,7 @@ class IPV8Socket(val community: Community) : DatagramSocket(), EndpointListener 
 
         val msgId = data[prefix.size].toUByte().toInt()
 
-        if (msgId == UTP_RAW_DATA) {
+        if (msgId == msgIdUTPRawData) {
             // Handling UTP_RAW_DATA packet
             val payload = packet.getPayload(UTPPayload.Deserializer)
             val address = sourceAddress as IPv4Address
