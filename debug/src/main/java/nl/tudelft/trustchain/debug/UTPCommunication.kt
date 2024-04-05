@@ -18,7 +18,13 @@ import java.nio.ByteBuffer
 import java.time.Duration
 import java.time.LocalDateTime
 
+
+/**
+ * Class that oversees the communication of UTP data between two peers.
+
+ */
 open class UTPCommunication {
+    // Convert data to UTF-8 string (max 200 characters)
     fun convertDataToUTF8(data: ByteArray): String {
         val maxCharToPrint = 200
         val utf8String = String(data, Charsets.UTF_8)
@@ -26,6 +32,7 @@ open class UTPCommunication {
         return if (utf8String.length > maxCharToPrint) utf8String.substring(0, maxCharToPrint) else utf8String
     }
 
+    // Get the speed of the transfer in Kb/s
     fun calculateTimeStats(startTime: LocalDateTime, dataAmount: Int): String {
         val endTime = LocalDateTime.now()
         val duration: Duration = Duration.between(startTime, endTime)
@@ -65,7 +72,9 @@ open class UTPCommunication {
     }
 }
 
-// Subclass for receiving data
+/**
+ * Class that oversees the receiving of UTP data from a peer.
+ */
 class UTPReceiver(
     private val uTPDataFragment: UTPDataFragment,
     community: Community
@@ -77,33 +86,30 @@ class UTPReceiver(
         return isReceiving
     }
 
+    // This method should be called when a UTP send request is received
     fun receiveData(sender: IPv4Address, dataSize: Int?) {
+        // handle invalid input
         if (isReceiving) {
             uTPDataFragment.newDataReceived(false, byteArrayOf(), IPv4Address("0.0.0.0", 0), "Already receiving. Wait for previous receive to finish!")
             return
         }
-
         if (sender.ip.isEmpty() || sender.ip == "0.0.0.0") {
             uTPDataFragment.newDataReceived(false, byteArrayOf(), sender, "Invalid sender address: ${sender.ip}. Stopping receiver.")
             return
         }
-
         if (dataSize == 0 || dataSize == null) {
             uTPDataFragment.newDataReceived(false, byteArrayOf(), sender, "Invalid data size received from sender. Stopping receiver.")
             return
         }
-
         isReceiving = true
 
+        // try to receive data
         try {
-            if (dataSize == 0) {
-                throw IllegalArgumentException("Invalid data size received from sender")
-            }
-
-            // socket is defined by the sender's ip and chosen sender port
+            // define socket that will be used by UTP to send data
+            // socket is defined by the sender's ip and port
             val socket = InetSocketAddress(InetAddress.getByName(sender.ip), sender.port)
 
-            // instantiate client to receive data
+            // instantiate client to receive data on the custom IPV8 socket
             val c = UtpSocketChannelImpl()
             try {
                 c.dgSocket = this.socket
@@ -114,27 +120,24 @@ class UTPReceiver(
             val channel: UtpSocketChannel = c
             uTPDataFragment.debugInfo("Starting receiver for ${sender.ip}:${sender.port}", reset = true)
 
-
             val cFut = channel.connect(socket) // connect to sender
             cFut.block() // block until connection is established
 //            if (timeout(cFut))  {
 //                uTPDataFragment.debugInfo("Timeout - Couldn't establish a connection with the sender")
 //                return
 //            }
-
-
             val startTime = LocalDateTime.now()
             uTPDataFragment.debugInfo("Connected to sender (${socket.toString()})")
 
-            // Allocate space in buffer and start receiving
+            // allocate space in buffer and start receiving
             val buffer = ByteBuffer.allocate(dataSize)
             val readFuture = channel.read(buffer)
             readFuture.block() // block until all data is received
 
-            // Rewind the buffer to make sure you're reading from the beginning
+            // rewind the buffer to make sure you're reading from the beginning
             buffer.rewind()
 
-            // Convert the buffer to a byte array
+            // convert the buffer to a byte array and retrieve data
             val data = ByteArray(buffer.remaining())
             buffer.get(data)
             val timeStats = calculateTimeStats(startTime, dataSize)
@@ -148,14 +151,16 @@ class UTPReceiver(
             uTPDataFragment.newDataReceived(true, data, sender)
         } catch (e: Exception) {
             e.printStackTrace(System.err)
-            uTPDataFragment.debugInfo("Error: ${e.message}")
+            uTPDataFragment.newDataReceived(false, byteArrayOf(), IPv4Address("0.0.0.0", 0), "Error: ${e.message}")
         } finally {
             isReceiving = false
         }
     }
 }
 
-// Subclass for sending data
+/**
+ * Class that oversees the sending of UTP data to a peer.
+ */
 class UTPSender(
     private val uTPDataFragment: UTPDataFragment,
     private val community: Community
@@ -167,24 +172,24 @@ class UTPSender(
         return isSending
     }
 
+    // Method to send data to a peer using UTP
     fun sendData(peerToSend: Peer, dataToSend: ByteArray) {
+        // handle invalid input
         if (isSending) {
             uTPDataFragment.newDataSent(false, "","Already sending. Wait for previous send to finish!")
             return
         }
-
         if (peerToSend.address.toString().isEmpty() || peerToSend.address.toString() == "0.0.0.0"){
             uTPDataFragment.newDataSent(false, "","Invalid peer address: ${peerToSend.address.toString()}. Stopping sender.")
             return
         }
-
         if (dataToSend.isEmpty()) {
             uTPDataFragment.newDataSent(false, peerToSend.address.toString(),"No data to send. Stopping sender.")
             return
         }
-
         isSending = true
 
+        // try to send the data to the chosen peer
         uTPDataFragment.debugInfo("Trying to send data to ${peerToSend.address.toString()}", reset = true)
 
         // send request to receiver to ask if we can send our data
@@ -193,14 +198,9 @@ class UTPSender(
         community.endpoint.send(peerToSend.address, packet)
 
         try {
-            // instantiate socket to send data (it waits for client to through socket first)
+            // use the custom IPV8 socket to send the data
             val server = UtpServerSocketChannel.open()
-            try {
-                server.bind(socket)
-            } catch (e: java.lang.Exception) {
-                e.printStackTrace(System.err)
-                uTPDataFragment.debugInfo("Error: ${e.message}")
-            }
+            server.bind(socket)
 
             try {
                 // wait until someone connects to socket and get new channel
@@ -226,29 +226,39 @@ class UTPSender(
                 val timeStats = calculateTimeStats(startTime, dataToSend.size)
                 uTPDataFragment.debugInfo("Sent all ${dataToSend.size/1024} Kb of data in $timeStats")
 
+                // tell listening fragment that the data has been sent successfully
                 uTPDataFragment.newDataSent(success=true, destinationAddress=channel.remoteAdress.toString())
 
                 channel.close()
                 uTPDataFragment.debugInfo("Socket closed")
             } catch (e: java.lang.Exception) {
                 e.printStackTrace(System.err)
-                uTPDataFragment.debugInfo("Error: ${e.message}")
+                uTPDataFragment.newDataSent(false, "","Error: ${e.message}")
             } finally {
                 server.close()
             }
         } catch (e: java.lang.Exception) {
             e.printStackTrace(System.err)
-            uTPDataFragment.debugInfo("Error: ${e.message}")
+            uTPDataFragment.newDataSent(false, "","Error: ${e.message}")
         } finally {
             isSending = false
         }
     }
 }
 
+/**
+ * Interface that should be implemented by the fragment that wants to receive UTP data.
+ * It is used to give information back to the fragment.
+ */
 interface UTPDataFragment {
+    // Relate back to fragment some information during the transfer
     fun debugInfo(info: String, toast: Boolean = false, reset: Boolean = false)
 
+    // Inform the fragment that new data has been received
+    // Or if success is false then the data could not be received and the {msg} gives the reason
     fun newDataReceived(success: Boolean, data: ByteArray, source: IPv4Address, msg: String = "")
 
+    // Inform the fragment that new data has been sent
+    // Or if success is false then the data could not be sent and the {msg} gives the reason
     fun newDataSent(success: Boolean, destinationAddress: String = "", msg: String = "")
 }

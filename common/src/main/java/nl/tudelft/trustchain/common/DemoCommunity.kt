@@ -90,7 +90,7 @@ class DemoCommunity : Community() {
 
 }
 
-// use this interface when someone is trying to send you something and you want to receive the UTP data
+// Use this interface when someone is trying to send you something and you want to receive the UTP data
 interface OnUTPSendRequestListener {
     fun onUTPSendRequest(sender: IPv4Address, dataSize: Int?)
 

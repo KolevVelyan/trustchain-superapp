@@ -21,9 +21,7 @@ import nl.tudelft.trustchain.common.OnUTPSendRequestListener
 
 class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger), OnUTPSendRequestListener {
     private val binding by viewBinding(FragmentNetworkDebuggerBinding::bind)
-
     private var receivingDialog: UTPReceiveDialogFragment? = null
-
     private var peerList: List<Peer> = emptyList()
 
     override fun onViewCreated(
@@ -32,6 +30,7 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
     ) {
         super.onViewCreated(view, savedInstanceState)
 
+        // add yourself to listeners to receive UTP send requests
         getDemoCommunity().addListener(this)
 
         val policy = ThreadPolicy.Builder().permitAll().build()
@@ -45,9 +44,13 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
         }
     }
 
+    // This method is called when a UTP send request is received
+    // It opens a new dialog to receive the data of the sender
     override fun onUTPSendRequest(sender: IPv4Address, dataSize: Int?) {
-        // update peer's last received time for UTP
+        // find the peer that sent the request
         val peer = peerList.find { it.address.ip == sender.ip }
+
+        // if sender is not in peers then display warnign to user and ignore request
         if (peer == null) {
             activity?.runOnUiThread {
                 Toast.makeText(
@@ -71,6 +74,7 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
             ).show()
         } else {
             try {
+                // open a new dialog to receive the data
                 val utpDialog = UTPReceiveDialogFragment(peer, getDemoCommunity(), dataSize)
                 utpDialog.show(parentFragmentManager, UTPReceiveDialogFragment.TAG)
                 receivingDialog = utpDialog
@@ -81,13 +85,17 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
         }
     }
 
+    // This method updates the peer list and handles clicking a peer by creating a UTPSendDialogFragment
     private fun updatePeerList()  {
-        peerList = getDemoCommunity().getPeers()
         val context: Context = requireContext()
 
+        // update the peer list based on the peers in the community
+        peerList = getDemoCommunity().getPeers()
         val peerListAdapter = PeerListAdapter(context, R.layout.peer_connection_list_item, peerList)
         binding.peerConnectionListView.adapter = peerListAdapter
 
+
+        // handle click on peer (opens UTP send dialog)
         binding.peerConnectionListView.setOnItemClickListener { _, _, position, _ ->
             val peer = peerList[position]
 
@@ -95,6 +103,7 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
                 Toast.makeText(context, "Not allowed to send data to ${peer.address.ip}", Toast.LENGTH_SHORT).show()
             } else {
                 try {
+                    // open a new dialog to send data to the clicked peer
                     val utpDialog = UTPSendDialogFragment(peer, getDemoCommunity()) as DialogFragment
                     utpDialog.show(parentFragmentManager, UTPSendDialogFragment.TAG)
                 } catch (e: Exception) {
@@ -106,19 +115,7 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
 
     }
 
-//    private fun showInfoDialog() {
-//        val dialogView = LayoutInflater.from(context).inflate(R.layout.info_popup_layout, null)
-//
-//        val dialogBuilder = AlertDialog.Builder(context)
-//            .setView(dialogView)
-//            .setPositiveButton("OK") { dialog, _ ->
-//                dialog.dismiss()
-//            }
-//
-//        val alertDialog = dialogBuilder.create()
-//        alertDialog.show()
-//    }
-
+    // Update details on screen of the user's peer
     private fun updateMyDetails() {
         val ipv8 = getIpv8()
         val demo = getDemoCommunity()
@@ -130,6 +127,7 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
     }
 
     private fun updateView() {
+        // continuously update the peer list and the user's details
         updatePeerList()
         updateMyDetails()
     }

@@ -10,6 +10,9 @@ import androidx.core.content.ContextCompat
 import nl.tudelft.ipv8.Peer
 import java.util.Date
 
+/**
+ * Adapter for the list of peers in the network.
+ */
 class PeerListAdapter(
     private val context: Context,
     resource: Int,
