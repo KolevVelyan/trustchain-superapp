@@ -2,6 +2,7 @@ package nl.tudelft.trustchain.common
 
 import nl.tudelft.ipv8.Community
 import nl.tudelft.ipv8.IPv4Address
+import nl.tudelft.ipv8.Peer
 import nl.tudelft.ipv8.messaging.Deserializable
 import nl.tudelft.ipv8.messaging.EndpointListener
 import nl.tudelft.ipv8.messaging.Packet
@@ -24,8 +25,9 @@ class IPV8Socket(val community: Community) : DatagramSocket(), EndpointListener 
         ByteArray(0) + Community.PREFIX_IPV8 + Community.VERSION + community.serviceId.hexToBytes();
 
     // create a semaphore to block the receive method until the community.endpoint receives a packet and notifies the IPV8Socket listener
-    val readSemaphore = Semaphore(0)
+    val readSemaphore = Semaphore(0);
     var messageQueue = ConcurrentLinkedQueue<Pair<IPv4Address, UTPPayload>>();
+    val peerMap = HashMap<IPv4Address, Peer>();
     init {
         community.endpoint.addListener(this)
     }
@@ -68,9 +70,22 @@ class IPV8Socket(val community: Community) : DatagramSocket(), EndpointListener 
         val packet = this.community.serializePacket(UTP_RAW_DATA, payload, sign = false)
 
         // define the peer from  the address, port in the datagram
-        val peer = IPv4Address(datagramPacket.address.hostAddress!!, datagramPacket.port)
+        val address = IPv4Address(datagramPacket.address.hostAddress!!, datagramPacket.port);
+        var peer : Peer?;
 
-        community.endpoint.send(peer, packet)
+        if(peerMap.contains(address)){
+            peer = peerMap[address];
+        }
+        else {
+            peer = community.getPeers().find { p: Peer -> p.address == address };
+
+            while(peer == null) {
+                peer = community.getPeers().find { p: Peer -> p.address == IPv4Address(datagramPacket.address.hostAddress!!, datagramPacket.port) };
+            }
+            peerMap[address] = peer;
+        }
+
+        community.endpoint.send(peer!!, packet)
     }
 
     override fun onPacket(packet: Packet) {
