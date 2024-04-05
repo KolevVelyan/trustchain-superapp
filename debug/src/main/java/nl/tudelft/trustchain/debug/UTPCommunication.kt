@@ -251,9 +251,4 @@ interface UTPDataFragment {
     fun newDataReceived(success: Boolean, data: ByteArray, source: IPv4Address, msg: String = "")
 
     fun newDataSent(success: Boolean, destinationAddress: String = "", msg: String = "")
-
-}
-
-interface UTPDialogListener {
-    fun onUTPDialogDismissed()
 }

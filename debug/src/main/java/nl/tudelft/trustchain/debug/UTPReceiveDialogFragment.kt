@@ -19,7 +19,6 @@ import java.time.format.DateTimeFormatter
 
 class UTPReceiveDialogFragment(private val otherPeer: Peer,
                                private val community: Community,
-                               private val utpDialogListener: UTPDialogListener,
                                private val dataSize: Int?)
         : DialogFragment(), UTPDataFragment {
     private var binding: FragmentUtpReceiveBinding? = null
@@ -60,8 +59,6 @@ class UTPReceiveDialogFragment(private val otherPeer: Peer,
         if (nReceiver != null && nReceiver.isReceiving()) {
             Toast.makeText(requireContext(), "UTP transfer from ${otherPeer.address} has been stopped", Toast.LENGTH_SHORT).show()
         }
-
-        utpDialogListener.onUTPDialogDismissed()
     }
 
     override fun debugInfo(info: String, toast: Boolean, reset: Boolean) {
@@ -111,7 +108,6 @@ class UTPReceiveDialogFragment(private val otherPeer: Peer,
 
     private fun updateView() {
         updatePeerDetails()
-//        binding!!.txtDebug.text = "Debug Info: ${otherPeer}"
     }
     companion object {
         const val TAG = "UTPReceiveDialogFragment"

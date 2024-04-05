@@ -19,11 +19,8 @@ import nl.tudelft.trustchain.debug.databinding.FragmentNetworkDebuggerBinding
 import nl.tudelft.trustchain.common.OnUTPSendRequestListener
 
 
-class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger),
-    UTPDialogListener, OnUTPSendRequestListener {
+class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger), OnUTPSendRequestListener {
     private val binding by viewBinding(FragmentNetworkDebuggerBinding::bind)
-
-    private var sentDialogOpen = false
 
     private var receivingDialog: UTPReceiveDialogFragment? = null
 
@@ -48,23 +45,7 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
         }
     }
 
-    override fun onUTPDialogDismissed() {
-        sentDialogOpen = false
-    }
-
     override fun onUTPSendRequest(sender: IPv4Address, dataSize: Int?) {
-        if (sentDialogOpen) {
-            activity?.runOnUiThread {
-                Toast.makeText(
-                    requireContext(),
-                    "Someone want to send you UTP data but cannot do so while you have a send dialog open.",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-            Log.w("UTP", "Cannot receive while send dialog is open")
-            return
-        }
-
         // update peer's last received time for UTP
         val peer = peerList.find { it.address.ip == sender.ip }
         if (peer == null) {
@@ -79,7 +60,7 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
             return
         }
 
-        // close any open receiving dialog
+        // close any open receiving dialogs
         receivingDialog?.dismiss()
 
         if (peer.address.ip == "0.0.0.0") {
@@ -90,7 +71,7 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
             ).show()
         } else {
             try {
-                val utpDialog = UTPReceiveDialogFragment(peer, getDemoCommunity(), this, dataSize)
+                val utpDialog = UTPReceiveDialogFragment(peer, getDemoCommunity(), dataSize)
                 utpDialog.show(parentFragmentManager, UTPReceiveDialogFragment.TAG)
                 receivingDialog = utpDialog
             } catch (e: Exception) {
@@ -113,14 +94,12 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
             if (peer.address.ip == "0.0.0.0") {
                 Toast.makeText(context, "Not allowed to send data to ${peer.address.ip}", Toast.LENGTH_SHORT).show()
             } else {
-                sentDialogOpen = try {
-                    val utpDialog = UTPSendDialogFragment(peer, getDemoCommunity(), this) as DialogFragment
+                try {
+                    val utpDialog = UTPSendDialogFragment(peer, getDemoCommunity()) as DialogFragment
                     utpDialog.show(parentFragmentManager, UTPSendDialogFragment.TAG)
-                    true
                 } catch (e: Exception) {
                     e.printStackTrace()
                     Log.e(UTPSendDialogFragment.TAG, "Error: ${e.message}")
-                    false
                 }
             }
         }
@@ -153,7 +132,6 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
     private fun updateView() {
         updatePeerList()
         updateMyDetails()
-        binding.txtResult.text = receivingDialog.toString()
     }
 }
 
