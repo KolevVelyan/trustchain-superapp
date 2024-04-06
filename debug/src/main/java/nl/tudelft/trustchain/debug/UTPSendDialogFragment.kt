@@ -244,9 +244,17 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
 
     // Update the peer details on the screen
     private fun updatePeerDetails() {
-        binding!!.peerId.text = PeerListAdapter.getSplitMID(otherPeer.mid)
-        binding!!.lanAddress.text = otherPeer.lanAddress.toString()
-        binding!!.wanAddress.text = otherPeer.wanAddress.toString()
+        val currBinding = binding ?: return
+
+        currBinding.peerId.text = PeerListAdapter.getSplitMID(otherPeer.mid)
+        currBinding.lanAddress.text = otherPeer.lanAddress.toString()
+        currBinding.wanAddress.text = otherPeer.wanAddress.toString()
+
+        // update status indicator
+        val statusIndicator = PeerListAdapter.getStatusIndicator(otherPeer.lastResponse, requireContext())
+        if (statusIndicator != null) {
+            currBinding.statusIndicator.background = statusIndicator
+        }
     }
 
     private fun updateView() {

@@ -1,6 +1,7 @@
 package nl.tudelft.trustchain.debug
 
 import android.content.Context
+import android.graphics.drawable.Drawable
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -60,17 +61,9 @@ class PeerListAdapter(
 //            }
 //        }
 
-        val lastReceive = peer.lastResponse
-        if (lastReceive != null){
-            val msSinceLastReceived = Date().time - lastReceive.time
-
-            if (msSinceLastReceived > 20 * 1000) {
-                holder.mStatusIndicator!!.background = ContextCompat.getDrawable(context, R.drawable.peer_indicator_red)
-            } else if (msSinceLastReceived > 10 * 1000) {
-                holder.mStatusIndicator!!.background = ContextCompat.getDrawable(context, R.drawable.peer_indicator_yellow)
-            } else {
-                holder.mStatusIndicator!!.background = ContextCompat.getDrawable(context, R.drawable.peer_indicator_green)
-            }
+        val statusIndicator = getStatusIndicator(peer.lastResponse, context)
+        if (statusIndicator != null) {
+            holder.mStatusIndicator!!.background = statusIndicator
         }
 
         return convertView
@@ -93,6 +86,21 @@ class PeerListAdapter(
         fun getSplitMID(mid: String): String {
             return mid.substring(0, mid.length / 2) +
                 "\n" + mid.substring(mid.length / 2)
+        }
+
+        fun getStatusIndicator(lastOccurrence: Date?, context: Context): Drawable? {
+            if (lastOccurrence == null) {
+                return null
+            }
+
+            val msSinceLastOccurrence = Date().time - lastOccurrence.time
+            return if (msSinceLastOccurrence > 20 * 1000) {
+                ContextCompat.getDrawable(context, R.drawable.peer_indicator_red)
+            } else if (msSinceLastOccurrence > 10 * 1000) {
+                ContextCompat.getDrawable(context, R.drawable.peer_indicator_yellow)
+            } else {
+                ContextCompat.getDrawable(context, R.drawable.peer_indicator_green)
+            }
         }
     }
 }

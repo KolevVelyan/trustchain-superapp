@@ -7,12 +7,53 @@
     android:orientation="vertical"
     tools:context=".UTPSendDialogFragment">
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Details of Receiving Peer"
-                android:textSize="16sp"
-                android:textStyle="bold" />
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Details of Receiving Peer"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="start"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Peer ID:"
+            android:textSize="14sp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:paddingStart="6dp"
+            android:layout_height="wrap_content"
+            android:id="@+id/peer_id"
+            android:textSize="14sp"
+            android:text=""/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="start|center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:layout_marginRight="6dp"
+            android:text="Status: "/>
+        <TextView
+            android:id="@+id/status_indicator"
+            android:layout_width="14sp"
+            android:layout_height="14sp"
+            android:background="@drawable/peer_indicator_green"
+            android:paddingStart="6dp" />
+    </LinearLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -52,27 +93,6 @@
             android:layout_height="wrap_content"
             android:paddingStart="6dp"
             android:id="@+id/wan_address"
-            android:textSize="14sp"
-            android:text=""/>
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="start"
-        android:orientation="horizontal">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Peer ID:"
-            android:textSize="14sp"/>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:paddingStart="6dp"
-            android:layout_height="wrap_content"
-            android:id="@+id/peer_id"
             android:textSize="14sp"
             android:text=""/>
     </LinearLayout>
@@ -131,6 +151,7 @@
         android:text="Output"
         android:textSize="16sp"
         android:textStyle="bold" />
+
     <ScrollView
         android:layout_width="match_parent"
         android:minHeight="200dp"
@@ -141,6 +162,7 @@
             android:layout_height="wrap_content"
             android:scrollbars="vertical" />
     </ScrollView>
+
     <TextView
         android:id="@+id/txtDebug"
         android:layout_width="match_parent"
