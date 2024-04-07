@@ -25,27 +25,6 @@ import java.util.Date
 
  */
 open class UTPCommunication {
-    // Get the speed of the transfer in Kb/s
-    fun calculateTimeStats(startTime: LocalDateTime, dataAmount: Int): String {
-        val endTime = LocalDateTime.now()
-        val duration: Duration = Duration.between(startTime, endTime)
-
-        // calculate time stats
-        val milliseconds: Long = duration.toMillis() % 1000
-        val seconds: Long = duration.seconds % 60
-        val minutes: Long = duration.toMinutes() % 60
-
-        // speed in Kb per second
-        val speed: Double = ((dataAmount).toDouble() / (duration.toMillis()).toDouble()) * (1000.0 / 1024.0)
-
-        var result = "$minutes:$seconds.$milliseconds"
-        if (!speed.isInfinite() && !speed.isNaN() && speed != 0.0) {
-            result += " (${String.format("%.3f", speed)} Kb/s)"
-        }
-
-        return result
-    }
-
     fun timeout(fut: UtpBlockableFuture): Boolean {
         val connection =  Thread() {
             try {
@@ -103,9 +82,7 @@ class UTPReceiver(
             val socket = InetSocketAddress(InetAddress.getByName(sender.ip), sender.port)
 
             // get the updates from the custom IPV8 socket
-            this.socket.statusFunction = fun(dataSent: Long, dataReceived: Long): Unit {
-                uTPDataFragment.debugInfo("Data sent: $dataSent; Data received: $dataReceived");
-            };
+            this.socket.statusFunction = uTPDataFragment::receiveSpeedUpdate
 
             // instantiate client to receive data on the custom IPV8 socket
             val c = UtpSocketChannelImpl()
@@ -138,8 +115,7 @@ class UTPReceiver(
             // convert the buffer to a byte array and retrieve data
             val data = ByteArray(buffer.remaining())
             buffer.get(data)
-            val timeStats = calculateTimeStats(startTime, dataSize)
-            uTPDataFragment.debugInfo("Received ${data.size/1024} Kb of data in $timeStats")
+            uTPDataFragment.debugInfo("Received all of data")
 
             channel.close()
             uTPDataFragment.debugInfo("Channel closed")
@@ -221,14 +197,13 @@ class UTPSender(
                 out.put(dataToSend)
                 val fut = channel.write(out)
                 fut.block() // block until all data is sent
-                val timeStats = calculateTimeStats(startTime, dataToSend.size)
-                uTPDataFragment.debugInfo("Sent all ${dataToSend.size/1024} Kb of data in $timeStats")
-
-                // tell listening fragment that the data has been sent successfully
-                uTPDataFragment.newDataSent(success=true, destinationAddress=channel.remoteAdress.toString())
+                uTPDataFragment.debugInfo("Sent all ${dataToSend.size/1024} Kb of data")
 
                 channel.close()
                 uTPDataFragment.debugInfo("Socket closed")
+
+                // tell listening fragment that the data has been sent successfully
+                uTPDataFragment.newDataSent(success=true, destinationAddress=channel.remoteAdress.toString())
             } catch (e: java.lang.Exception) {
                 e.printStackTrace(System.err)
                 uTPDataFragment.newDataSent(false, "","Error: ${e.message}")
@@ -261,5 +236,5 @@ interface UTPDataFragment {
     fun newDataSent(success: Boolean, destinationAddress: String = "", msg: String = "")
 
 
-    fun receiveSpeedUpdate(dataSent: Long, dataReceived: Long)
+    fun receiveSpeedUpdate(isSentPacket: Boolean, packetSize: Int, seqNum: Int, ackNum: Int)
 }

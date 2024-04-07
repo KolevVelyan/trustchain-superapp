@@ -15,6 +15,7 @@ import nl.tudelft.ipv8.Peer
 import nl.tudelft.trustchain.debug.databinding.FragmentUtpReceiveBinding
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import kotlin.math.ceil
 
 /**
  * Dialog fragment that receives data through UTP
@@ -27,6 +28,24 @@ class UTPReceiveDialogFragment(private val otherPeer: Peer,
 
     // the receiver object that receives the data
     private var receiver = UTPReceiver(this@UTPReceiveDialogFragment, community)
+
+    private var updateSpeed: Boolean = true
+
+    private var initialPacketTime: LocalDateTime = LocalDateTime.now()
+    private var lastSentTime: LocalDateTime = LocalDateTime.now()
+    private var lastReceivedTime: LocalDateTime = LocalDateTime.now()
+
+    private var totalDataSent: Int = 0
+    private var totalDataReceived: Int = 0
+
+    private var sentSeqNum: Int = 0
+    private var sentAckNum: Int = 0
+    private var receivedSeqNum: Int = 0
+    private var receivedAckNum: Int = 0
+
+    private var sentPackets: Int = 0
+    private var receivedPackets: Int = 0
+
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         // inflate the view to get the correct layout
         val dialogView = layoutInflater.inflate(R.layout.fragment_utp_receive, null)
@@ -83,8 +102,7 @@ class UTPReceiveDialogFragment(private val otherPeer: Peer,
 
         // otherwise display the data
         val dataSize = data.size
-        appendTextToResult("Received ${dataSize/1024}Kb from ${source}:")
-        appendTextToResult(convertDataToUTF8(data))
+        appendTextToResult("Received ${dataSize/1024}Kb from ${source}:\n${convertDataToUTF8(data)}")
     }
 
     // Handle confirmation of the data being sent (should not happen as we have only started a receiver)
@@ -92,13 +110,35 @@ class UTPReceiveDialogFragment(private val otherPeer: Peer,
         appendTextToResult("Unexpectedly sending data. SHOULD NOT HAPPEN!")
     }
 
-    override fun receiveSpeedUpdate(dataSent: Long, dataReceived: Long) {
-        binding!!.txtDataSpeed.text = "Sent: $dataSent B/s\nReceived: $dataReceived B/s"
+    override fun receiveSpeedUpdate(isSentPacket: Boolean, packetSize: Int, seqNum: Int, ackNum: Int) {
+        updateSpeed = true
+
+        if (isSentPacket) {
+            sentPackets++
+            if (seqNum > sentSeqNum) {
+                sentSeqNum = seqNum // always 0 as the receiver only sends 1 packet on connection
+            }
+            if (ackNum > sentAckNum) {
+                sentAckNum = ackNum // up to which packet the receiver has received
+            }
+            totalDataSent += packetSize
+            lastSentTime = LocalDateTime.now()
+        } else {
+            receivedPackets++
+            if (seqNum > receivedSeqNum) {
+                receivedSeqNum = seqNum // last packet the sender sent
+            }
+            if (ackNum > receivedAckNum) {
+                receivedAckNum = ackNum // should become 1 when connected and stay 1 as the sender acknowledges only the initial connection packet
+            }
+            totalDataReceived += packetSize
+            lastReceivedTime = LocalDateTime.now()
+        }
     }
 
     // Convert data to UTF-8 string (max 200 characters)
     private fun convertDataToUTF8(data: ByteArray): String {
-        val maxCharToPrint = 200
+        val maxCharToPrint = 555
         val utf8String = String(data, Charsets.UTF_8)
 
         return if (utf8String.length > maxCharToPrint) utf8String.substring(0, maxCharToPrint) else utf8String
@@ -138,8 +178,40 @@ class UTPReceiveDialogFragment(private val otherPeer: Peer,
         }
     }
 
+    // Update the data speed on the screen
+    private fun updateDataSpeed() {
+        if (!updateSpeed) {return}
+
+        val currBinding = binding ?: return
+
+        val totalSendDiff = lastSentTime.toLocalTime().toNanoOfDay() - initialPacketTime.toLocalTime().toNanoOfDay()
+        val totalSendDiffSec = totalSendDiff / 1_000_000_000.0
+
+        val totalRcvdDiff = lastReceivedTime.toLocalTime().toNanoOfDay() - initialPacketTime.toLocalTime().toNanoOfDay()
+        val totalRcvdDiffSec = totalRcvdDiff / 1_000_000_000.0
+
+        val kBSent = totalDataSent.toDouble() / 1000.0
+        val kBReceived = totalDataReceived.toDouble() / 1000.0
+
+        val avgKBSent = kBSent / totalSendDiffSec
+        val avgKBReceived = kBReceived / totalRcvdDiffSec
+
+        val dataSpeed ="Sent ${String.format("%.2f", kBSent)}KB (${String.format("%.2f", avgKBSent)}KB/s) [S:$sentSeqNum, A:$sentAckNum, TP:$sentPackets]\nRcvd ${String.format("%.2f", kBReceived)}KB (${String.format("%.2f", avgKBReceived)}KB/s) [S:$receivedSeqNum, A:$receivedAckNum, TP:$receivedPackets]"
+
+        currBinding.txtDataSpeed.text = dataSpeed
+
+        if (dataSize != null) {
+            val totalPackets = ceil(dataSize.toDouble() / 1452.0).toInt()
+            currBinding.txtTotalExpect.text = "[$sentAckNum/$totalPackets]"
+        }
+
+
+        updateSpeed = false
+    }
+
     private fun updateView() {
         updatePeerDetails()
+        updateDataSpeed()
     }
     companion object {
         const val TAG = "UTPReceiveDialogFragment"

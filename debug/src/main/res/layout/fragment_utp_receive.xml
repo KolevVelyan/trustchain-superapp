@@ -28,9 +28,9 @@
 
         <TextView
             android:layout_width="wrap_content"
-            android:paddingStart="6dp"
             android:layout_height="wrap_content"
             android:id="@+id/peer_id"
+            android:layout_marginRight="6dp"
             android:textSize="14sp"
             android:text=""/>
     </LinearLayout>
@@ -51,8 +51,7 @@
             android:id="@+id/status_indicator"
             android:layout_width="14sp"
             android:layout_height="14sp"
-            android:background="@drawable/peer_indicator_green"
-            android:paddingStart="6dp" />
+            android:background="@drawable/peer_indicator_green"/>
     </LinearLayout>
 
     <LinearLayout
@@ -70,7 +69,6 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:paddingStart="6dp"
             android:id="@+id/lan_address"
             android:textSize="14sp"
             android:text=""/>
@@ -91,19 +89,31 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:paddingStart="6dp"
             android:id="@+id/wan_address"
             android:textSize="14sp"
             android:text=""/>
     </LinearLayout>
 
-    <TextView
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:gravity="start"
         android:layout_marginTop="16dp"
-        android:text="Receiving speed"
-        android:textSize="16sp"
-        android:textStyle="bold" />
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Receiver speed"
+            android:textSize="16sp"
+            android:layout_marginRight="6dp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/txtTotalExpect"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/txtDataSpeed"

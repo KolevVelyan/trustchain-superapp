@@ -22,6 +22,7 @@ import java.io.IOException
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Arrays
+import kotlin.math.ceil
 
 /**
  * Dialog fragment that sends data through UTP
@@ -36,13 +37,23 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
     private var chosenVote: String = "" // the type of data/vote the user wants to send
     private var availableVotes : Array<String> = emptyArray() // the list of available votes
 
+    private var updateSpeed: Boolean = true
+    private var dataSize: Int = 1
+
     private var initialPacketTime: LocalDateTime = LocalDateTime.now()
-    private var lastPacketTime: LocalDateTime = LocalDateTime.now()
-    private var currentPacketTime: LocalDateTime = LocalDateTime.now()
-    private var lastDataSent: Long = 0
-    private var totalDataSent: Long = 0
-    private var lastDataReceived: Long = 0
-    private var totalDataReceived: Long = 0
+    private var lastSentTime: LocalDateTime = LocalDateTime.now()
+    private var lastReceivedTime: LocalDateTime = LocalDateTime.now()
+
+    private var totalDataSent: Int = 0
+    private var totalDataReceived: Int = 0
+
+    private var sentSeqNum: Int = 0
+    private var sentAckNum: Int = 0
+    private var receivedSeqNum: Int = 0
+    private var receivedAckNum: Int = 0
+
+    private var sentPackets: Int = 0
+    private var receivedPackets: Int = 0
 
     // This method is called when the dialog is created
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
@@ -75,6 +86,7 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
                     Toast.LENGTH_SHORT
                 ).show()
             } else if (validateDataSize()) {
+                sender = UTPSender(this@UTPSendDialogFragment, community)
                 // start sender in new thread
                 val thread = Thread {
                     startSender()
@@ -118,16 +130,33 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
         }
 
         // if successful, display success message
-        appendTextToResult("Sent data to $destinationAddress")
+        appendTextToResult("Success! Sent to $destinationAddress")
     }
 
-    override fun receiveSpeedUpdate(dataSent: Long, dataReceived: Long) {
-        if (initialPacketTime == null) {
-            initialPacketTime = LocalDateTime.now()
+    override fun receiveSpeedUpdate(isSentPacket: Boolean, packetSize: Int, seqNum: Int, ackNum: Int) {
+        updateSpeed = true
+
+        if (isSentPacket) {
+            sentPackets++
+            if (seqNum > sentSeqNum) {
+                sentSeqNum = seqNum // up to which packet the sender has sent
+            }
+            if (ackNum > sentAckNum) {
+                sentAckNum = ackNum // should become 1 when connected and stay 1 as the receiver sends only the initial packet on connection
+            }
+            totalDataSent += packetSize
+            lastSentTime = LocalDateTime.now()
+        } else {
+            receivedPackets++
+            if (seqNum > receivedSeqNum) {
+                receivedSeqNum = seqNum // always stays at 0 as the receiver sends only 1 packet on connection
+            }
+            if (ackNum > receivedAckNum) {
+                receivedAckNum = ackNum // up to which packet the receiver has received
+            }
+            totalDataReceived += packetSize
+            lastReceivedTime = LocalDateTime.now()
         }
-        currentPacketTime = LocalDateTime.now()
-        lastDataSent = dataSent - totalDataSent
-        lastDataReceived = dataReceived - totalDataReceived
     }
 
     // Validate the data size entered by the user
@@ -171,6 +200,20 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
             // get the data from the chosen vote/file
             byteData = readCsvToByteArray(chosenVote)
         }
+
+        initialPacketTime = LocalDateTime.now()
+        lastSentTime = LocalDateTime.now()
+        lastReceivedTime = LocalDateTime.now()
+        totalDataSent = 0
+        totalDataReceived = 0
+        sentSeqNum = 0
+        sentAckNum= 0
+        receivedSeqNum = 0
+        receivedAckNum = 0
+        updateSpeed = true
+        sentPackets = 0
+        receivedPackets = 0
+        dataSize = byteData.size
 
         // send the data to the other peer
         sender.sendData(otherPeer, byteData)
@@ -276,37 +319,32 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
 
     // Update the data speed on the screen
     private fun updateDataSpeed() {
-        if (currentPacketTime == lastPacketTime) return
+        if (!updateSpeed) {return}
 
         val currBinding = binding ?: return
 
-//        if (lastPacketTime == null) {
-//            return
-//        }
+        val totalSendDiff = lastSentTime.toLocalTime().toNanoOfDay() - initialPacketTime.toLocalTime().toNanoOfDay()
+        val totalSendDiffSec = totalSendDiff / 1_000_000_000.0
 
-        val timeDifference = currentPacketTime!!.toLocalTime().toNanoOfDay() - lastPacketTime!!.toLocalTime().toNanoOfDay()
-        val timeDifferenceSeconds = timeDifference / 1_000_000_000.0
+        val totalRcvdDiff = lastReceivedTime.toLocalTime().toNanoOfDay() - initialPacketTime.toLocalTime().toNanoOfDay()
+        val totalRcvdDiffSec = totalRcvdDiff / 1_000_000_000.0
 
-        val sentDataSpeed = lastDataSent / timeDifferenceSeconds
-        val receivedDataSpeed = lastDataReceived / timeDifferenceSeconds
+        val kBSent = totalDataSent.toDouble() / 1000.0
+        val kBReceived = totalDataReceived.toDouble() / 1000.0
 
-        val totalDifference = currentPacketTime!!.toLocalTime().toNanoOfDay() - initialPacketTime!!.toLocalTime().toNanoOfDay()
-        val totalDifferenceSeconds = totalDifference / 1_000_000_000.0
+        val avgKBSent = kBSent / totalSendDiffSec
+        val avgKBReceived = kBReceived / totalRcvdDiffSec
 
-        val avgSentDataSpeed = totalDataSent / totalDifferenceSeconds
-        val avgReceivedDataSpeed = totalDataReceived / totalDifferenceSeconds
+        val dataSpeed ="Sent ${String.format("%.2f", kBSent)}KB (${String.format("%.2f", avgKBSent)}KB/s) [S:$sentSeqNum, A:$sentAckNum, TP:$sentPackets]\nRcvd ${String.format("%.2f", kBReceived)}KB (${String.format("%.2f", avgKBReceived)}KB/s) [S:$receivedSeqNum, A:$receivedAckNum, TP:$receivedPackets]"
 
-        // since the last update we have sent lastDataSent bytes
-        // and received lastDataReceived bytes in timeDifferenceSeconds seconds
-        val dataSpeed ="\nSent $totalDataSent Bytes (${String.format("%.3f", avgSentDataSpeed)} B/s) \nReceived $totalDataReceived (${String.format("%.3f", avgReceivedDataSpeed)} B/s)"
         currBinding.txtDataSpeed.text = dataSpeed
 
+        val totalPackets = ceil(dataSize.toDouble() / 1452.0).toInt()
 
-        if (currentPacketTime != lastPacketTime) {
-            lastPacketTime = currentPacketTime
-            totalDataSent += lastDataSent
-            totalDataReceived += lastDataReceived
-        }
+        currBinding.txtTotalExpect.text = "[$sentSeqNum/$totalPackets]"
+
+
+        updateSpeed = false
     }
 
     private fun updateView() {

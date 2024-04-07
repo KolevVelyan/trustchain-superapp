@@ -38,15 +38,8 @@ class IPV8Socket(val community: Community) : DatagramSocket(), EndpointListener 
     // Queue to store received messages
     private var messageQueue = ConcurrentLinkedQueue<Pair<IPv4Address, UTPPayload>>()
 
-    // Map to store peers, who the socket has sent to
-    private val peerMap = HashMap<IPv4Address, Peer>()
-
     // Function to update status when data is sent or received
-    lateinit var statusFunction: (Long, Long) -> Unit
-
-    // Count of data sent and received
-    private var dataSent: Long = 0
-    private var dataReceived: Long = 0
+    lateinit var statusFunction: (Boolean, Int, Int, Int) -> Unit
 
     init {
         // Registering IPV8Socket as a listener for community's endpoint
@@ -82,8 +75,9 @@ class IPV8Socket(val community: Community) : DatagramSocket(), EndpointListener 
         p?.data = packet.data
 
         // Updating received tracker and invoking status function
-        dataReceived += packet.data.size
-        statusFunction(dataSent, dataReceived)
+        val rAckNum = packet.data[19].toUByte().toInt() + (packet.data[18].toUByte().toInt() shl 8)
+        val rSeqNum = packet.data[17].toUByte().toInt() + (packet.data[16].toUByte().toInt() shl 8)
+        statusFunction(false, packet.data.size, rSeqNum, rAckNum)
     }
 
     /**
@@ -104,27 +98,14 @@ class IPV8Socket(val community: Community) : DatagramSocket(), EndpointListener 
 
         // Defining the peer from the address and port in the datagram
         val address = IPv4Address(datagramPacket.address.hostAddress!!, datagramPacket.port)
-        var peer : Peer?
-
-        // Checking if the peer exists in the map, else finding it from the community
-        if(peerMap.contains(address)){
-            peer = peerMap[address]
-        }
-        else {
-            peer = community.getPeers().find { p: Peer -> p.address == address }
-
-            while(peer == null) {
-                peer = community.getPeers().find { p: Peer -> p.address == IPv4Address(datagramPacket.address.hostAddress!!, datagramPacket.port) }
-            }
-            peerMap[address] = peer
-        }
 
         // Sending packet through community's endpoint
-        community.endpoint.send(peer!!, packet)
+        community.endpoint.send(address, packet)
 
         // Updating sent and receive counters
-        dataSent += datagramPacket.data.size
-        statusFunction(dataSent, dataReceived)
+        val sSeqNum = datagramPacket.data[17].toUByte().toInt() + (datagramPacket.data[16].toUByte().toInt() shl 8)
+        val sAckNum = datagramPacket.data[19].toUByte().toInt() + (datagramPacket.data[18].toUByte().toInt() shl 8)
+        statusFunction(true, datagramPacket.data.size, sSeqNum, sAckNum)
     }
 
     /**
