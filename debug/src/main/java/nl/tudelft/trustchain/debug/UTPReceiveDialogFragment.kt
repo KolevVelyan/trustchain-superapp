@@ -92,6 +92,10 @@ class UTPReceiveDialogFragment(private val otherPeer: Peer,
         appendTextToResult("Unexpectedly sending data. SHOULD NOT HAPPEN!")
     }
 
+    override fun receiveSpeedUpdate(dataSent: Long, dataReceived: Long) {
+        binding!!.txtDataSpeed.text = "Sent: $dataSent B/s\nReceived: $dataReceived B/s"
+    }
+
     // Convert data to UTF-8 string (max 200 characters)
     private fun convertDataToUTF8(data: ByteArray): String {
         val maxCharToPrint = 200

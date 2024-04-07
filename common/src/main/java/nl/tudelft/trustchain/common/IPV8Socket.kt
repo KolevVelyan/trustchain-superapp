@@ -123,7 +123,7 @@ class IPV8Socket(val community: Community) : DatagramSocket(), EndpointListener 
         community.endpoint.send(peer!!, packet)
 
         // Updating sent and receive counters
-        dataSent += packet.size
+        dataSent += datagramPacket.data.size
         statusFunction(dataSent, dataReceived)
     }
 

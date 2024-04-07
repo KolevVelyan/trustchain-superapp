@@ -193,9 +193,7 @@ class UTPSender(
         val packet = community.serializePacket(DemoCommunity.MessageId.UTP_SEND_REQUEST, payload, sign = false)
         community.endpoint.send(peerToSend.address, packet)
 
-        this.socket.statusFunction = fun(dataSent: Long, dataReceived: Long): Unit {
-            uTPDataFragment.debugInfo("Data sent: $dataSent; Data received: $dataReceived");
-        };
+        this.socket.statusFunction = uTPDataFragment::receiveSpeedUpdate
 
         try {
             // use the custom IPV8 socket to send the data
@@ -261,4 +259,7 @@ interface UTPDataFragment {
     // Inform the fragment that new data has been sent
     // Or if success is false then the data could not be sent and the {msg} gives the reason
     fun newDataSent(success: Boolean, destinationAddress: String = "", msg: String = "")
+
+
+    fun receiveSpeedUpdate(dataSent: Long, dataReceived: Long)
 }
