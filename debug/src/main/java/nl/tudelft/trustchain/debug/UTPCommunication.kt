@@ -17,6 +17,7 @@ import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.time.Duration
 import java.time.LocalDateTime
+import java.util.Date
 
 
 /**
@@ -100,6 +101,11 @@ class UTPReceiver(
             // define socket that will be used by UTP to send data
             // socket is defined by the sender's ip and port
             val socket = InetSocketAddress(InetAddress.getByName(sender.ip), sender.port)
+
+            // get the updates from the custom IPV8 socket
+            this.socket.statusFunction = fun(dataSent: Long, dataReceived: Long): Unit {
+                uTPDataFragment.debugInfo("Data sent: $dataSent; Data received: $dataReceived");
+            };
 
             // instantiate client to receive data on the custom IPV8 socket
             val c = UtpSocketChannelImpl()
@@ -186,6 +192,10 @@ class UTPSender(
         val payload = UTPSendPayload(dataToSend.size)
         val packet = community.serializePacket(DemoCommunity.MessageId.UTP_SEND_REQUEST, payload, sign = false)
         community.endpoint.send(peerToSend.address, packet)
+
+        this.socket.statusFunction = fun(dataSent: Long, dataReceived: Long): Unit {
+            uTPDataFragment.debugInfo("Data sent: $dataSent; Data received: $dataReceived");
+        };
 
         try {
             // use the custom IPV8 socket to send the data
