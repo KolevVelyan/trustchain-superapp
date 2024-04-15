@@ -114,8 +114,20 @@
             android:layout_height="wrap_content"
             android:text="Receiver speed"
             android:textSize="16sp"
-            android:layout_marginRight="6dp"
+            android:layout_marginRight="4dp"
             android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/infoButton"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:background="@drawable/ic_action_info"
+            android:clickable="true"
+            android:focusable="true"
+            android:layout_marginRight="6dp"
+            android:focusableInTouchMode="true"
+            android:text=""
+            tools:ignore="SpeakableTextPresentCheck,TouchTargetSizeCheck" />
 
         <TextView
             android:id="@+id/txtTotalExpect"

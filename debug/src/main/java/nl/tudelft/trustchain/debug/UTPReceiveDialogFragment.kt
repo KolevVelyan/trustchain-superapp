@@ -71,6 +71,10 @@ class UTPReceiveDialogFragment(private val otherPeer: Peer,
             }
         }
 
+        binding!!.infoButton.setOnClickListener{
+            showInfoDialog()
+        }
+
         return dialogBuilder.create()
     }
 
@@ -218,6 +222,33 @@ class UTPReceiveDialogFragment(private val otherPeer: Peer,
         }
 
         updateSpeed = false
+    }
+
+    private fun showInfoDialog() {
+        val dialogBuilder = AlertDialog.Builder(context)
+            .setPositiveButton("OK") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .setMessage("The \"Receiver speed\" section is for tracking the speed of the UTP transfer. It updates as the transfer progresses. \n" +
+                "\n" +
+                "The text next to the info button displays how many unique UTP packets (of max size) are expected to be received. It updates with the current highest sequence number of the sender.\n" +
+                "\n" +
+                "The two lines below in the section display for the receiver how much data it has sent or received (with approximate data transfer rate), respectively, as well as there are three flags (S, A, and TP).\n" +
+                "\n" +
+                "For \"Sent\":\n" +
+                "S stands for highest sequence number sent by receiver (becomes 1 when sender and receiver have connected)\n" +
+                "A stands for highest acknowledgment sent by receiver\n" +
+                "TP is total packets sent by sender (sometimes the total data sent is more that the actual data because of retransmissions)\n" +
+                "\n" +
+                "For \"Rcvd\":\n" +
+                "S stands for highest sequence number received by receiver\n" +
+                "A stands for highest acknowledgment received by receiver (becomes 1 when sender and receiver have connected)\n" +
+                "TP is total packets received by receiver\n" +
+                "\n" +
+                "NOTE: sender and receiver have different \"Sent\" and \"Rcvd\" sections.")
+
+        val alertDialog = dialogBuilder.create()
+        alertDialog.show()
     }
 
     private fun updateView() {
