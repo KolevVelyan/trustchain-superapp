@@ -24,23 +24,7 @@ import java.time.LocalDateTime
 
  */
 open class UTPCommunication {
-    fun timeout(fut: UtpBlockableFuture): Boolean {
-        val connection =  Thread() {
-            try {
-                fut.block() // block until connection is established
-            } catch (_: java.lang.Exception) {
-            }
-        }
-
-        connection.start()
-        connection.join(30000)
-        if (connection.isAlive) { // If thread is still alive after join
-            connection.interrupt(); // Interrupt the thread
-            return true
-        }
-
-        return false
-    }
+    // add common methods for sender and receiver here
 }
 
 /**
@@ -107,16 +91,11 @@ class UTPReceiver(
             connectFuture = channel!!.connect(socket) // connect to sender
             uTPDataFragment.debugInfo("Waiting for sender to connect...")
             connectFuture?.block() // block until connection is established
-//            if (timeout(cFut))  {
-//                uTPDataFragment.debugInfo("Timeout - Couldn't establish a connection with the sender")
-//                return
-//            }
 
             // can only be null if stopConnection was called (so no need to continue)
             if (connectFuture == null) {
                 return
             }
-
 
             uTPDataFragment.debugInfo("Connected to sender (${socket.toString()})")
 
@@ -208,10 +187,6 @@ class UTPSender(
                 acceptFuture = server!!.accept()
                 uTPDataFragment.debugInfo("Waiting for receiver to connect...")
                 acceptFuture?.block() // block until connection is established
-//                if (timeout(acceptFuture))  {
-//                    uTPDataFragment.debugInfo("Timeout - Couldn't establish a connection with the receiver")
-//                    return
-//                }
 
                 // can only be null if stopConnection was called (so no need to continue)
                 if (acceptFuture == null) {
