@@ -4,6 +4,7 @@ import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
+import io.mockk.slot
 import io.mockk.spyk
 import nl.tudelft.ipv8.IPv4Address
 import nl.tudelft.ipv8.Peer
@@ -43,6 +44,7 @@ class IPV8SocketTest {
         every { mockedCommunity.myPeer } returns myPeer
         every { mockedCommunity.endpoint } returns endpoint
         every { mockedCommunity.network } returns network
+        every { mockedCommunity.claimGlobalTime() } returns 1u;
         every { myPeer.lamportTimestamp } returns 0u;
         every { myPeer.updateClock(any()) } just runs;
         every { myPeer.key } returns mockk<PublicKey>();
@@ -119,11 +121,34 @@ print("" + a+ b+ c+ d);
 
     @Test
     fun sendCorrect() {
-        // Mock the community
+        // Create the datagram packet
+        val testData = ByteArray(50);
+        val testSource = InetAddress.getByName("1.2.3.4")
+        val testPort = 5678;
+        val datagramPacket = DatagramPacket(testData, testData.size);
+        datagramPacket.address = testSource;
+        datagramPacket.port = testPort;
 
-        // Make sure that the community endpoint is called with the right send payload
+        // Create the socket
+        val testSocket = IPV8Socket(mockedCommunity);
+        testSocket.statusFunction = this::statusFunction;
+        val targetAddress = IPv4Address(datagramPacket.address.hostAddress!!, datagramPacket.port)
 
-        // Make sure that the status function is called
+        val capturedAddress = slot<Address>();
+        val capturedPayload = slot<ByteArray>();
+
+        every { mockedCommunity.myPeer.key } returns mockk<PublicKey>();
+        every { endpoint.send(capture(capturedAddress), capture(capturedPayload)) } just runs;
+
+        // run the function
+        testSocket.send(datagramPacket);
+
+        // Assertions
+        assertEquals(targetAddress, capturedAddress.captured);
+
+        val serializedPacket = mockedCommunity.serializePacket(msgIdUTPRawData, UTPPayload(datagramPacket), sign = false)
+        assertArrayEquals(serializedPacket, capturedPayload.captured)
+
 
     }
 
@@ -203,7 +228,11 @@ print("" + a+ b+ c+ d);
      */
     @Test
     fun onEstimatedLanChanged() {
-        assertTrue(true);
+        // Test the socket
+        val testSocket = IPV8Socket(mockedCommunity);
+        val mockedAddress = mockk<IPv4Address>();
+
+        testSocket.onEstimatedLanChanged(mockedAddress);
     }
 
     @Test
