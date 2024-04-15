@@ -102,7 +102,7 @@ class UTPReceiveDialogFragment(private val otherPeer: Peer,
 
         // otherwise display the data
         val dataSize = data.size
-        appendTextToResult("Received ${dataSize/1024}Kb from ${source}:\n${convertDataToUTF8(data)}")
+        appendTextToResult("Received ${dataSize/1024}KB from ${source}:\n${convertDataToUTF8(data)}")
     }
 
     // Handle confirmation of the data being sent (should not happen as we have only started a receiver)
@@ -190,8 +190,8 @@ class UTPReceiveDialogFragment(private val otherPeer: Peer,
         val totalRcvdDiff = lastReceivedTime.toLocalTime().toNanoOfDay() - initialPacketTime.toLocalTime().toNanoOfDay()
         val totalRcvdDiffSec = totalRcvdDiff / 1_000_000_000.0
 
-        val kBSent = totalDataSent.toDouble() / 1000.0
-        val kBReceived = totalDataReceived.toDouble() / 1000.0
+        val kBSent = totalDataSent.toDouble() / 1024.0
+        val kBReceived = totalDataReceived.toDouble() / 1024.0
 
         val avgKBSent = kBSent / totalSendDiffSec
         val avgKBReceived = kBReceived / totalRcvdDiffSec

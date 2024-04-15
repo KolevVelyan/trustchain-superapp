@@ -329,8 +329,8 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
         val totalRcvdDiff = lastReceivedTime.toLocalTime().toNanoOfDay() - initialPacketTime.toLocalTime().toNanoOfDay()
         val totalRcvdDiffSec = totalRcvdDiff / 1_000_000_000.0
 
-        val kBSent = totalDataSent.toDouble() / 1000.0
-        val kBReceived = totalDataReceived.toDouble() / 1000.0
+        val kBSent = totalDataSent.toDouble() / 1024.0
+        val kBReceived = totalDataReceived.toDouble() / 1024.0
 
         val avgKBSent = kBSent / totalSendDiffSec
         val avgKBReceived = kBReceived / totalRcvdDiffSec

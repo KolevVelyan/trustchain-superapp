@@ -7,6 +7,14 @@
     android:orientation="vertical"
     tools:context=".UTPSendDialogFragment">
 
+<ScrollView
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -176,16 +184,11 @@
         android:textSize="16sp"
         android:textStyle="bold" />
 
-    <ScrollView
+    <TextView
+        android:id="@+id/txtResult"
         android:layout_width="match_parent"
-        android:minHeight="200dp"
-        android:layout_height="200dp">
-        <TextView
-            android:id="@+id/txtResult"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:scrollbars="vertical" />
-    </ScrollView>
+        android:layout_height="wrap_content"
+        android:scrollbars="vertical" />
 
     <TextView
         android:id="@+id/txtDebug"
@@ -194,5 +197,6 @@
         android:scrollbars="vertical" />
 
 
-
+</LinearLayout>
+</ScrollView>
 </LinearLayout>

@@ -197,7 +197,7 @@ class UTPSender(
                 out.put(dataToSend)
                 val fut = channel.write(out)
                 fut.block() // block until all data is sent
-                uTPDataFragment.debugInfo("Sent all ${dataToSend.size/1024} Kb of data")
+                uTPDataFragment.debugInfo("Sent all ${dataToSend.size/1024}KB of data")
 
                 channel.close()
                 uTPDataFragment.debugInfo("Socket closed")
