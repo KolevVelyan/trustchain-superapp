@@ -51,17 +51,14 @@ class IPV8SocketTest {
         every { endpoint.send(any<Peer>(), any()) } just runs
         every { endpoint.addListener(any<EndpointListener>()) } just runs
     }
+
     private fun statusFunction(
         a: Boolean,
         b: Int,
         c: Int,
         d: Int
     ) {
-print("" + a+ b+ c+ d);
-    }
-
-    @After
-    fun tearDown() {
+        print("" + a + b + c + d);
     }
 
     @Test
@@ -69,7 +66,6 @@ print("" + a+ b+ c+ d);
         // Run test for 5 seconds and assume that the thread is still blocked
 
     }
-
 
 
     @Test
@@ -146,20 +142,12 @@ print("" + a+ b+ c+ d);
         // Assertions
         assertEquals(targetAddress, capturedAddress.captured);
 
-        val serializedPacket = mockedCommunity.serializePacket(msgIdUTPRawData, UTPPayload(datagramPacket), sign = false)
+        val serializedPacket = mockedCommunity.serializePacket(
+            msgIdUTPRawData,
+            UTPPayload(datagramPacket),
+            sign = false
+        )
         assertArrayEquals(serializedPacket, capturedPayload.captured)
-
-
-    }
-
-    @Test
-    fun sendWhenPeerNotDiscoveredYet() {
-        // Mock the community
-
-        // Make sure that the community endpoint is called with the right send payload
-
-        // Make sure that the status function is called
-
     }
 
     @Test
@@ -186,7 +174,7 @@ print("" + a+ b+ c+ d);
         every { testPacket.source } returns mockk<Address>()
         every { testPacket.data } returns mockedData;
         every { network.getVerifiedByAddress(any()) } returns mockedPeer;
-        every { mockedPeer.lastResponse =  any() } just runs;
+        every { mockedPeer.lastResponse = any() } just runs;
 
         // Assert that the handler and received is not called
         testSocket.onPacket(testPacket);
@@ -218,7 +206,10 @@ print("" + a+ b+ c+ d);
         val recievedDatagram = DatagramPacket(ByteArray(150), 150);
         testSocket.receive(recievedDatagram);
 
-        assertEquals(InetSocketAddress(InetAddress.getByName(mockedSource.ip), mockedSource.port), recievedDatagram.socketAddress)
+        assertEquals(
+            InetSocketAddress(InetAddress.getByName(mockedSource.ip), mockedSource.port),
+            recievedDatagram.socketAddress
+        )
 
         assertArrayEquals(fakePayload.payload.data, recievedDatagram.data)
     }
