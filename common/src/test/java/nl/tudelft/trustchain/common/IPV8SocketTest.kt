@@ -1,11 +1,19 @@
 package nl.tudelft.trustchain.common
 
+import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
+import io.mockk.runs
 import io.mockk.spyk
 import nl.tudelft.ipv8.Peer
 import nl.tudelft.ipv8.messaging.EndpointAggregator
+import nl.tudelft.ipv8.messaging.EndpointListener
 import nl.tudelft.ipv8.peerdiscovery.Network
-import org.junit.jupiter.api.Assertions.*
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
 
 class IPV8SocketTest {
     private var marketCommunity = spyk(DemoCommunity(), recordPrivateCalls = true)
@@ -13,21 +21,28 @@ class IPV8SocketTest {
     private val socket = mockk<IPV8Socket>()
     private val endpoint = mockk<EndpointAggregator>()
     private val network = mockk<Network>(relaxed = true)
-    @org.junit.jupiter.api.BeforeEach
+    @Before
     fun setUp() {
+
+        every { marketCommunity.getPeers() } returns ArrayList<Peer>();
+        every { marketCommunity.myPeer } returns myPeer
+        every { marketCommunity.endpoint } returns endpoint
+        every { marketCommunity.network } returns network
+        every { endpoint.send(any<Peer>(), any()) } just runs
+        every { endpoint.addListener(any<EndpointListener>()) } just runs
     }
 
-    @org.junit.jupiter.api.AfterEach
+    @After
     fun tearDown() {
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     fun receiveWaitsForSemaphore() {
         // Run test for 5 seconds and assume that the thread is still blocked
 
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     fun receiveThrowsIOExceptionWhenInterrupted() {
         // Create the socket
 
@@ -36,7 +51,7 @@ class IPV8SocketTest {
         // Interrupt the thread and assert that IOException is thrown
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     fun recieveThrowsErrorOnEmptyQueue() {
         // Create the socket
 
@@ -45,7 +60,7 @@ class IPV8SocketTest {
         // Check that an error is thrown
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     fun receiveReadsFromQueueOncePerSemaphore() {
         // Create the socket
 
@@ -56,7 +71,7 @@ class IPV8SocketTest {
         // Check that the queue was popped only once
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     fun sendCorrect() {
         // Mock the community
 
@@ -66,7 +81,7 @@ class IPV8SocketTest {
 
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     fun sendWhenPeerNotDiscoveredYet() {
         // Mock the community
 
@@ -76,7 +91,7 @@ class IPV8SocketTest {
 
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     fun sendDatagramNull() {
         // Create the socket
 
@@ -85,7 +100,7 @@ class IPV8SocketTest {
         // Assert the
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     fun onPacketNotForUs() {
         // Create the community
 
@@ -96,7 +111,7 @@ class IPV8SocketTest {
         // Assert that the handler and received is not called
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     fun onPacketForUs() {
         // Create the community
 
@@ -112,19 +127,18 @@ class IPV8SocketTest {
     /**
      * This should not do anything by design
      */
-    @org.junit.jupiter.api.Test
+    @Test
     fun onEstimatedLanChanged() {
         assertTrue(true);
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     fun getCommunity() {
-        val testCommunity = DemoCommunity();
 
         // Test the socket
-        val testSocket = IPV8Socket(testCommunity);
+        val testSocket = IPV8Socket(marketCommunity);
 
         // Assert that the community is correct
-        assertEquals(testCommunity, testSocket.community);
+        assertEquals(marketCommunity, testSocket.community);
     }
 }
