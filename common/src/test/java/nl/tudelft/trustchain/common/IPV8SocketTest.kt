@@ -5,15 +5,22 @@ import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
 import io.mockk.spyk
+import nl.tudelft.ipv8.IPv4Address
 import nl.tudelft.ipv8.Peer
 import nl.tudelft.ipv8.messaging.EndpointAggregator
 import nl.tudelft.ipv8.messaging.EndpointListener
 import nl.tudelft.ipv8.peerdiscovery.Network
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.io.IOException
+import java.net.DatagramPacket
+import java.net.DatagramSocket
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.Semaphore
 
 class IPV8SocketTest {
     private var marketCommunity = spyk(DemoCommunity(), recordPrivateCalls = true)
@@ -42,22 +49,41 @@ class IPV8SocketTest {
 
     }
 
+
+
     @Test
     fun receiveThrowsIOExceptionWhenInterrupted() {
-        // Create the socket
 
-        // Run the socket recieve thread
+        // Create a mock Semaphore
+        val mockSemaphore = mockk<Semaphore>()
+        every { mockSemaphore.acquire() } throws InterruptedException()
+        var testSocket = IPV8Socket(marketCommunity)
+        testSocket.readSemaphore = mockSemaphore
 
         // Interrupt the thread and assert that IOException is thrown
+        assertThrows(IOException::class.java) {
+            testSocket.receive(null)
+        }
     }
 
     @Test
     fun recieveThrowsErrorOnEmptyQueue() {
-        // Create the socket
+        // Create a mock Semaphore
+        val mockSemaphore = mockk<Semaphore>()
+        every { mockSemaphore.acquire() } just runs
 
-        // Release the semaphore
+        // mock the queue
+        val mockQueue = mockk<ConcurrentLinkedQueue<Pair<IPv4Address, UTPPayload>>>()
+        every { mockQueue.poll() } returns null
 
-        // Check that an error is thrown
+        var testSocket = IPV8Socket(marketCommunity)
+        testSocket.readSemaphore = mockSemaphore
+        testSocket.messageQueue = mockQueue
+
+        // Interrupt the thread and assert that IOException is thrown
+        assertThrows(Error::class.java) {
+            testSocket.receive(null)
+        }
     }
 
     @Test

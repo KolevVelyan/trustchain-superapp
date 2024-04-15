@@ -33,10 +33,10 @@ class IPV8Socket(val community: Community) : DatagramSocket(), EndpointListener 
 
     // Semaphore to block the receive method until a packet is received
     // and IPV8Socket listener is notified
-    private val readSemaphore = Semaphore(0)
+    var readSemaphore = Semaphore(0)
 
     // Queue to store received messages
-    private var messageQueue = ConcurrentLinkedQueue<Pair<IPv4Address, UTPPayload>>()
+    var messageQueue = ConcurrentLinkedQueue<Pair<IPv4Address, UTPPayload>>()
 
     // Function to update status when data is sent or received
     lateinit var statusFunction: (Boolean, Int, Int, Int) -> Unit
