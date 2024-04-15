@@ -138,6 +138,7 @@ dependencies {
     testImplementation 'io.mockk:mockk-dsl:1.13.9'
 
     implementation 'com.github.kolevvelyan:utp4j:fdda485266837cac59a754eeb084f69f9fb943c0'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.8.2'
 }
 
 
