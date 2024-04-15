@@ -16,7 +16,8 @@ import nl.tudelft.trustchain.common.messaging.UTPSendPayload
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
-import java.time.LocalDateTime
+
+
 
 
 /**
@@ -25,6 +26,13 @@ import java.time.LocalDateTime
  */
 open class UTPCommunication {
     // add common methods for sender and receiver here
+
+    companion object {
+        // 1472 bytes is the maximum size of a UTP packet
+        // 31 bytes is the size of the IPV8 unsigned header
+        // 20 bytes is the size of the UTP header
+        const val MAX_UTP_PACKET = 1472.0 - 31.0 - 20.0
+    }
 }
 
 /**
@@ -104,17 +112,26 @@ class UTPReceiver(
             val readFuture = channel!!.read(buffer)
             readFuture.block() // block until all data is received
 
+            val totalReceived = buffer.position() // in bytes
+            uTPDataFragment.debugInfo("Received $totalReceived/$dataSize bytes of data")
+
             // rewind the buffer to make sure you're reading from the beginning
             buffer.rewind()
 
             // convert the buffer to a byte array and retrieve data
-            val data = ByteArray(buffer.remaining())
+            val data = ByteArray(totalReceived)
             buffer.get(data)
 
             channel?.close()
-            uTPDataFragment.debugInfo("Transfer finished. Channel closed")
+            uTPDataFragment.debugInfo("Channel closed")
 
-            uTPDataFragment.newDataReceived(true, data, sender)
+            if (totalReceived == 0) {
+                uTPDataFragment.newDataReceived(false, byteArrayOf(), sender, "No data sent")
+            } else if (totalReceived != dataSize) {
+                uTPDataFragment.newDataReceived(false, data, sender, "Received $totalReceived bytes instead of $dataSize")
+            } else {
+                uTPDataFragment.newDataReceived(true, data, sender)
+            }
         } catch (e: Exception) {
             e.printStackTrace(System.err)
             uTPDataFragment.newDataReceived(false, byteArrayOf(), IPv4Address("0.0.0.0", 0), "Error: ${e.message}")
@@ -158,11 +175,11 @@ class UTPSender(
             return
         }
         if (peerToSend.address.toString().isEmpty() || peerToSend.address.toString() == "0.0.0.0"){
-            uTPDataFragment.newDataSent(false, "","Invalid peer address: ${peerToSend.address.toString()}. Stopping sender.")
+            uTPDataFragment.newDataSent(false, "","Invalid peer address: ${peerToSend.address.toString()}. Stopping sender")
             return
         }
         if (dataToSend.isEmpty()) {
-            uTPDataFragment.newDataSent(false, peerToSend.address.toString(),"No data to send. Stopping sender.")
+            uTPDataFragment.newDataSent(false, peerToSend.address.toString(),"No data to send. Stopping sender")
             return
         }
         isSending = true
@@ -202,11 +219,23 @@ class UTPSender(
                 val fut = channel!!.write(out)
                 fut.block() // block until all data is sent
 
+                val totalSent = out.position() // in bytes
+                uTPDataFragment.debugInfo("Sent $totalSent/${dataToSend.size} bytes of data")
+
                 channel?.close()
-                uTPDataFragment.debugInfo("Transfer finished. Channel closed")
+                uTPDataFragment.debugInfo("Channel closed")
 
                 // tell listening fragment that the data has been sent successfully
-                uTPDataFragment.newDataSent(success=true, destinationAddress=channel?.remoteAdress.toString())
+                if (totalSent == 0) {
+                    uTPDataFragment.newDataSent(false, "","No data sent")
+                } else if (totalSent != dataToSend.size) {
+                    uTPDataFragment.newDataSent(false, "","Sent $totalSent bytes instead of ${dataToSend.size}")
+                } else {
+                    uTPDataFragment.newDataSent(
+                        success = true,
+                        destinationAddress = channel?.remoteAdress.toString()
+                    )
+                }
             } catch (e: java.lang.Exception) {
                 e.printStackTrace(System.err)
                 uTPDataFragment.newDataSent(false, "","Error: ${e.message}")

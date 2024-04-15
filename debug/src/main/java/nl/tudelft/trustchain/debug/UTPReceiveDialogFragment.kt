@@ -103,13 +103,13 @@ class UTPReceiveDialogFragment(private val otherPeer: Peer,
     override fun newDataReceived(success: Boolean, data: ByteArray, source: IPv4Address, msg: String) {
         // if unsuccessful, display the error message
         if (!success) {
-            appendTextToResult(msg)
+            appendTextToResult("Failure! $msg")
             return
         }
 
         // otherwise display the data
         val dataSize = data.size
-        appendTextToResult("Received ${dataSize/1024}KB from ${source}:\n${convertDataToUTF8(data)}")
+        appendTextToResult("Success! Received ${dataSize/1024}KB from ${source}:\n${convertDataToUTF8(data)}")
     }
 
     // Handle confirmation of the data being sent (should not happen as we have only started a receiver)
@@ -212,7 +212,7 @@ class UTPReceiveDialogFragment(private val otherPeer: Peer,
             currBinding.txtDataSpeed.text = dataSpeed
 
             if (dataSize != null) {
-                val totalPackets = ceil(dataSize.toDouble() / 1452.0).toInt()
+                val totalPackets = ceil(dataSize.toDouble() / UTPCommunication.MAX_UTP_PACKET).toInt()
                 currBinding.txtTotalExpect.text = "[$sentAckNum/$totalPackets]"
             }
         }

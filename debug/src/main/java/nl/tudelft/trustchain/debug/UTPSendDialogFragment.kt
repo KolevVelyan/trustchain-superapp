@@ -130,7 +130,7 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
     override fun newDataSent(success: Boolean, destinationAddress: String, msg: String) {
         // if unsuccessful or no destination address, display error message
         if (!success || destinationAddress == "") {
-            appendTextToResult(msg)
+            appendTextToResult("Failure! $msg")
             return
         }
 
@@ -348,7 +348,7 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
         val avgKBReceived = kBReceived / totalRcvdDiffSec
 
         val dataSpeed ="Sent ${String.format("%.2f", kBSent)}KB (${String.format("%.2f", avgKBSent)}KB/s) [S:$sentSeqNum, A:$sentAckNum, TP:$sentPackets]\nRcvd ${String.format("%.2f", kBReceived)}KB (${String.format("%.2f", avgKBReceived)}KB/s) [S:$receivedSeqNum, A:$receivedAckNum, TP:$receivedPackets]"
-        val totalPackets = ceil(dataSize.toDouble() / 1452.0).toInt()
+        val totalPackets = ceil(dataSize.toDouble() / UTPCommunication.MAX_UTP_PACKET).toInt()
 
         activity?.runOnUiThread {
             currBinding.txtDataSpeed.text = dataSpeed
