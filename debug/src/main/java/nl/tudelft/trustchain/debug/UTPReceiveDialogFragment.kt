@@ -79,7 +79,14 @@ class UTPReceiveDialogFragment(private val otherPeer: Peer,
         super.onDismiss(dialog)
         // when closing the dialog if the receiver is still receiving, inform user that the transfer has been stopped
         if (receiver.isReceiving()) {
-            Toast.makeText(requireContext(), "UTP transfer from ${otherPeer.address} has been stopped", Toast.LENGTH_SHORT).show()
+            receiver.stopConnection()
+            activity?.runOnUiThread {
+                Toast.makeText(
+                    requireContext(),
+                    "UTP transfer from ${otherPeer.address} has been stopped",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
         }
     }
 
@@ -141,7 +148,7 @@ class UTPReceiveDialogFragment(private val otherPeer: Peer,
         val maxCharToPrint = 555
         val utf8String = String(data, Charsets.UTF_8)
 
-        return if (utf8String.length > maxCharToPrint) utf8String.substring(0, maxCharToPrint) else utf8String
+        return if (utf8String.length > maxCharToPrint) "${utf8String.substring(0, maxCharToPrint)}..." else utf8String
     }
 
     // Update the output text and reset it
@@ -167,14 +174,17 @@ class UTPReceiveDialogFragment(private val otherPeer: Peer,
     private fun updatePeerDetails() {
         val currBinding = binding ?: return
 
-        currBinding.peerId.text = PeerListAdapter.getSplitMID(otherPeer.mid)
-        currBinding.lanAddress.text = otherPeer.lanAddress.toString()
-        currBinding.wanAddress.text = otherPeer.wanAddress.toString()
+        activity?.runOnUiThread {
+            currBinding.peerId.text = PeerListAdapter.getSplitMID(otherPeer.mid)
+            currBinding.lanAddress.text = otherPeer.lanAddress.toString()
+            currBinding.wanAddress.text = otherPeer.wanAddress.toString()
 
-        // update status indicator
-        val statusIndicator = PeerListAdapter.getStatusIndicator(otherPeer.lastResponse, requireContext())
-        if (statusIndicator != null) {
-            currBinding.statusIndicator.background = statusIndicator
+            // update status indicator
+            val statusIndicator =
+                PeerListAdapter.getStatusIndicator(otherPeer.lastResponse, requireContext())
+            if (statusIndicator != null) {
+                currBinding.statusIndicator.background = statusIndicator
+            }
         }
     }
 
@@ -198,13 +208,14 @@ class UTPReceiveDialogFragment(private val otherPeer: Peer,
 
         val dataSpeed ="Sent ${String.format("%.2f", kBSent)}KB (${String.format("%.2f", avgKBSent)}KB/s) [S:$sentSeqNum, A:$sentAckNum, TP:$sentPackets]\nRcvd ${String.format("%.2f", kBReceived)}KB (${String.format("%.2f", avgKBReceived)}KB/s) [S:$receivedSeqNum, A:$receivedAckNum, TP:$receivedPackets]"
 
-        currBinding.txtDataSpeed.text = dataSpeed
+        activity?.runOnUiThread {
+            currBinding.txtDataSpeed.text = dataSpeed
 
-        if (dataSize != null) {
-            val totalPackets = ceil(dataSize.toDouble() / 1452.0).toInt()
-            currBinding.txtTotalExpect.text = "[$sentAckNum/$totalPackets]"
+            if (dataSize != null) {
+                val totalPackets = ceil(dataSize.toDouble() / 1452.0).toInt()
+                currBinding.txtTotalExpect.text = "[$sentAckNum/$totalPackets]"
+            }
         }
-
 
         updateSpeed = false
     }

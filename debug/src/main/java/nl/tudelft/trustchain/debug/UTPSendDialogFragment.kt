@@ -80,11 +80,13 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
         binding!!.btnSend.setOnClickListener {
             // do not send if already sending
             if (sender.isSending()) {
-                Toast.makeText(
-                    requireContext(),
-                    "Already sending. Wait for previous send to finish!",
-                    Toast.LENGTH_SHORT
-                ).show()
+                activity?.runOnUiThread {
+                    Toast.makeText(
+                        requireContext(),
+                        "Already sending. Wait for previous send to finish!",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             } else if (validateDataSize()) {
                 sender = UTPSender(this@UTPSendDialogFragment, community)
                 // start sender in new thread
@@ -103,7 +105,10 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
         super.onDismiss(dialog)
         // when closing the dialog if the sender is still sending, inform user that the transfer has been stopped
         if (sender.isSending()) {
-            Toast.makeText(requireContext(), "UTP transfer to ${otherPeer.address} has been stopped", Toast.LENGTH_SHORT).show()
+            sender.stopConnection()
+            activity?.runOnUiThread {
+                Toast.makeText(requireContext(), "UTP transfer to ${otherPeer.address} has been stopped", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -164,7 +169,9 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
         val context: Context = requireContext()
 
         if (binding!!.dataSize.text.toString().isEmpty() && binding!!.dataSize.isEnabled) {
-            Toast.makeText(context, "Invalid data size", Toast.LENGTH_SHORT).show()
+            activity?.runOnUiThread {
+                Toast.makeText(context, "Invalid data size", Toast.LENGTH_SHORT).show()
+            }
             return false
         }
 
@@ -244,28 +251,30 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
     private fun updateVoteFiles() {
         val voteFiles = getFileNames()
         if (!voteFiles.contentEquals(availableVotes)) {
-            // peers have changed need to update
-            availableVotes = voteFiles
-            val autoComplete: AutoCompleteTextView = binding!!.autoCompleteVotes
-            val context: Context = requireContext()
-            val adapter = ArrayAdapter(context, R.layout.vote_item, availableVotes)
+            activity?.runOnUiThread {
+                // peers have changed need to update
+                availableVotes = voteFiles
+                val autoComplete: AutoCompleteTextView = binding!!.autoCompleteVotes
+                val context: Context = requireContext()
+                val adapter = ArrayAdapter(context, R.layout.vote_item, availableVotes)
 
-            autoComplete.setAdapter(adapter)
-            autoComplete.onItemClickListener = AdapterView.OnItemClickListener {
-                    adapterView, _, i, _ ->
+                autoComplete.setAdapter(adapter)
+                autoComplete.onItemClickListener = AdapterView.OnItemClickListener {
+                        adapterView, _, i, _ ->
 
-                val itemSelected = adapterView.getItemAtPosition(i)
-                chosenVote = itemSelected.toString()
+                    val itemSelected = adapterView.getItemAtPosition(i)
+                    chosenVote = itemSelected.toString()
 
-                if (chosenVote == ARG_CUSTOM_SIZE || chosenVote.isEmpty()) {
-                    binding!!.dataSize.isEnabled = true
-                    binding!!.dataSize.setText("0")
-                } else {
-                    binding!!.dataSize.isEnabled = false
-                    val dataSize = readCsvToByteArray(chosenVote).size
-                    binding!!.dataSize.setText((dataSize / 1024).toString())
+                    if (chosenVote == ARG_CUSTOM_SIZE || chosenVote.isEmpty()) {
+                        binding!!.dataSize.isEnabled = true
+                        binding!!.dataSize.setText("0")
+                    } else {
+                        binding!!.dataSize.isEnabled = false
+                        val dataSize = readCsvToByteArray(chosenVote).size
+                        binding!!.dataSize.setText((dataSize / 1024).toString())
+                    }
+
                 }
-
             }
         }
     }
@@ -306,14 +315,17 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
     private fun updatePeerDetails() {
         val currBinding = binding ?: return
 
-        currBinding.peerId.text = PeerListAdapter.getSplitMID(otherPeer.mid)
-        currBinding.lanAddress.text = otherPeer.lanAddress.toString()
-        currBinding.wanAddress.text = otherPeer.wanAddress.toString()
+        activity?.runOnUiThread {
+            currBinding.peerId.text = PeerListAdapter.getSplitMID(otherPeer.mid)
+            currBinding.lanAddress.text = otherPeer.lanAddress.toString()
+            currBinding.wanAddress.text = otherPeer.wanAddress.toString()
 
-        // update status indicator
-        val statusIndicator = PeerListAdapter.getStatusIndicator(otherPeer.lastResponse, requireContext())
-        if (statusIndicator != null) {
-            currBinding.statusIndicator.background = statusIndicator
+            // update status indicator
+            val statusIndicator =
+                PeerListAdapter.getStatusIndicator(otherPeer.lastResponse, requireContext())
+            if (statusIndicator != null) {
+                currBinding.statusIndicator.background = statusIndicator
+            }
         }
     }
 
@@ -336,13 +348,12 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
         val avgKBReceived = kBReceived / totalRcvdDiffSec
 
         val dataSpeed ="Sent ${String.format("%.2f", kBSent)}KB (${String.format("%.2f", avgKBSent)}KB/s) [S:$sentSeqNum, A:$sentAckNum, TP:$sentPackets]\nRcvd ${String.format("%.2f", kBReceived)}KB (${String.format("%.2f", avgKBReceived)}KB/s) [S:$receivedSeqNum, A:$receivedAckNum, TP:$receivedPackets]"
-
-        currBinding.txtDataSpeed.text = dataSpeed
-
         val totalPackets = ceil(dataSize.toDouble() / 1452.0).toInt()
 
-        currBinding.txtTotalExpect.text = "[$sentSeqNum/$totalPackets]"
-
+        activity?.runOnUiThread {
+            currBinding.txtDataSpeed.text = dataSpeed
+            currBinding.txtTotalExpect.text = "[$sentSeqNum/$totalPackets]"
+        }
 
         updateSpeed = false
     }

@@ -3,6 +3,7 @@ package nl.tudelft.trustchain.debug
 import net.utp4j.channels.UtpServerSocketChannel
 import net.utp4j.channels.UtpSocketChannel
 import net.utp4j.channels.UtpSocketState
+import net.utp4j.channels.futures.UtpAcceptFuture
 import net.utp4j.channels.futures.UtpBlockableFuture
 import net.utp4j.channels.impl.UtpSocketChannelImpl
 import nl.tudelft.ipv8.Community
@@ -15,9 +16,7 @@ import nl.tudelft.trustchain.common.messaging.UTPSendPayload
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
-import java.time.Duration
 import java.time.LocalDateTime
-import java.util.Date
 
 
 /**
@@ -52,10 +51,20 @@ class UTPReceiver(
     community: Community
 ) : UTPCommunication() {
     private var isReceiving: Boolean = false
-    private var socket: IPV8Socket = IPV8Socket(community);
+    private var socket: IPV8Socket = IPV8Socket(community)
+    private var channel: UtpSocketChannel? = null
+    private var connectFuture: UtpBlockableFuture? = null
 
     fun isReceiving(): Boolean {
         return isReceiving
+    }
+
+    fun stopConnection() {
+        synchronized(this) {
+            connectFuture?.unblock() // unblock if no one has connected
+            connectFuture = null // reset future
+            channel?.close() // close channel
+        }
     }
 
     // This method should be called when a UTP send request is received
@@ -92,21 +101,28 @@ class UTPReceiver(
             } catch (exp: IOException) {
                 throw IOException("Could not open UtpSocketChannel: ${exp.message}")
             }
-            val channel: UtpSocketChannel = c
+            channel = c
             uTPDataFragment.debugInfo("Starting receiver for ${sender.ip}:${sender.port}", reset = true)
 
-            val cFut = channel.connect(socket) // connect to sender
-            cFut.block() // block until connection is established
+            connectFuture = channel!!.connect(socket) // connect to sender
+            uTPDataFragment.debugInfo("Waiting for sender to connect...")
+            connectFuture?.block() // block until connection is established
 //            if (timeout(cFut))  {
 //                uTPDataFragment.debugInfo("Timeout - Couldn't establish a connection with the sender")
 //                return
 //            }
-            val startTime = LocalDateTime.now()
+
+            // can only be null if stopConnection was called (so no need to continue)
+            if (connectFuture == null) {
+                return
+            }
+
+
             uTPDataFragment.debugInfo("Connected to sender (${socket.toString()})")
 
             // allocate space in buffer and start receiving
             val buffer = ByteBuffer.allocate(dataSize)
-            val readFuture = channel.read(buffer)
+            val readFuture = channel!!.read(buffer)
             readFuture.block() // block until all data is received
 
             // rewind the buffer to make sure you're reading from the beginning
@@ -115,10 +131,9 @@ class UTPReceiver(
             // convert the buffer to a byte array and retrieve data
             val data = ByteArray(buffer.remaining())
             buffer.get(data)
-            uTPDataFragment.debugInfo("Received all of data")
 
-            channel.close()
-            uTPDataFragment.debugInfo("Channel closed")
+            channel?.close()
+            uTPDataFragment.debugInfo("Transfer finished. Channel closed")
 
             uTPDataFragment.newDataReceived(true, data, sender)
         } catch (e: Exception) {
@@ -138,10 +153,22 @@ class UTPSender(
     private val community: Community
 ) : UTPCommunication() {
     private var isSending: Boolean = false
-    private var socket: IPV8Socket = IPV8Socket(community);
+    private var socket: IPV8Socket = IPV8Socket(community)
+    private var server: UtpServerSocketChannel? = null
+    private var channel: UtpSocketChannel? = null
+    private var acceptFuture: UtpAcceptFuture? = null
 
     fun isSending(): Boolean {
         return isSending
+    }
+
+    fun stopConnection() {
+        synchronized (this) {
+            acceptFuture?.unblock() // unblock if no one has connected
+            acceptFuture = null // reset future
+            channel?.close() // close channel if connection is established
+            server?.close() // close the server
+        }
     }
 
     // Method to send data to a peer using UTP
@@ -173,42 +200,43 @@ class UTPSender(
 
         try {
             // use the custom IPV8 socket to send the data
-            val server = UtpServerSocketChannel.open()
-            server.bind(socket)
+            server = UtpServerSocketChannel.open()
+            server?.bind(socket)
 
             try {
                 // wait until someone connects to socket and get new channel
-                val acceptFuture = server.accept()
-                uTPDataFragment.debugInfo("Waiting for client to connect...")
-
-
-                acceptFuture.block() // block until connection is established
+                acceptFuture = server!!.accept()
+                uTPDataFragment.debugInfo("Waiting for receiver to connect...")
+                acceptFuture?.block() // block until connection is established
 //                if (timeout(acceptFuture))  {
 //                    uTPDataFragment.debugInfo("Timeout - Couldn't establish a connection with the receiver")
 //                    return
 //                }
 
+                // can only be null if stopConnection was called (so no need to continue)
+                if (acceptFuture == null) {
+                    return
+                }
+
                 uTPDataFragment.debugInfo("Client has connected")
-                val startTime = LocalDateTime.now()
-                val channel = acceptFuture.channel
+                channel = acceptFuture?.channel
 
                 // send data on newly established channel (with client/receiver)
                 val out = ByteBuffer.allocate(dataToSend.size)
                 out.put(dataToSend)
-                val fut = channel.write(out)
+                val fut = channel!!.write(out)
                 fut.block() // block until all data is sent
-                uTPDataFragment.debugInfo("Sent all ${dataToSend.size/1024}KB of data")
 
-                channel.close()
-                uTPDataFragment.debugInfo("Socket closed")
+                channel?.close()
+                uTPDataFragment.debugInfo("Transfer finished. Channel closed")
 
                 // tell listening fragment that the data has been sent successfully
-                uTPDataFragment.newDataSent(success=true, destinationAddress=channel.remoteAdress.toString())
+                uTPDataFragment.newDataSent(success=true, destinationAddress=channel?.remoteAdress.toString())
             } catch (e: java.lang.Exception) {
                 e.printStackTrace(System.err)
                 uTPDataFragment.newDataSent(false, "","Error: ${e.message}")
             } finally {
-                server.close()
+                server?.close()
             }
         } catch (e: java.lang.Exception) {
             e.printStackTrace(System.err)

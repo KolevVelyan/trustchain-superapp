@@ -67,11 +67,13 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
         receivingDialog?.dismiss()
 
         if (peer.address.ip == "0.0.0.0") {
-            Toast.makeText(
-                context,
-                "Not allowed to receive data from ${peer.address.ip}",
-                Toast.LENGTH_SHORT
-            ).show()
+            activity?.runOnUiThread {
+                Toast.makeText(
+                    context,
+                    "Not allowed to receive data from ${peer.address.ip}",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
         } else {
             try {
                 // open a new dialog to receive the data
@@ -100,7 +102,13 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
             val peer = peerList[position]
 
             if (peer.address.ip == "0.0.0.0") {
-                Toast.makeText(context, "Not allowed to send data to ${peer.address.ip}", Toast.LENGTH_SHORT).show()
+                activity?.runOnUiThread {
+                    Toast.makeText(
+                        context,
+                        "Not allowed to send data to ${peer.address.ip}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             } else {
                 try {
                     // open a new dialog to send data to the clicked peer
@@ -117,13 +125,15 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
 
     // Update details on screen of the user's peer
     private fun updateMyDetails() {
-        val ipv8 = getIpv8()
-        val demo = getDemoCommunity()
-        binding.lanAddress.text = demo.myEstimatedLan.toString()
-        binding.wanAddress.text = demo.myEstimatedWan.toString()
-        binding.connectionType.text = demo.network.wanLog
-            .estimateConnectionType().value
-        binding.peerId.text = PeerListAdapter.getSplitMID(ipv8.myPeer.mid)
+        activity?.runOnUiThread {
+            val ipv8 = getIpv8()
+            val demo = getDemoCommunity()
+            binding.lanAddress.text = demo.myEstimatedLan.toString()
+            binding.wanAddress.text = demo.myEstimatedWan.toString()
+            binding.connectionType.text = demo.network.wanLog
+                .estimateConnectionType().value
+            binding.peerId.text = PeerListAdapter.getSplitMID(ipv8.myPeer.mid)
+        }
     }
 
     private fun updateView() {
