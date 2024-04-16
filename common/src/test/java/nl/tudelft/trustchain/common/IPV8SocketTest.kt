@@ -1,11 +1,13 @@
 package nl.tudelft.trustchain.common
 
+import io.mockk.Awaits
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
 import io.mockk.slot
 import io.mockk.spyk
+import io.mockk.verify
 import nl.tudelft.ipv8.IPv4Address
 import nl.tudelft.ipv8.Peer
 import nl.tudelft.ipv8.keyvault.PublicKey
@@ -14,20 +16,18 @@ import nl.tudelft.ipv8.messaging.EndpointAggregator
 import nl.tudelft.ipv8.messaging.EndpointListener
 import nl.tudelft.ipv8.messaging.Packet
 import nl.tudelft.ipv8.peerdiscovery.Network
-import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.io.IOException
+import java.lang.Thread.State
 import java.net.DatagramPacket
-import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.Semaphore
-import java.lang.Error
 import java.net.InetAddress
 import java.net.InetSocketAddress
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.Semaphore
 
 class IPV8SocketTest {
     private var mockedCommunity = spyk(DemoCommunity(), recordPrivateCalls = true)
@@ -63,8 +63,27 @@ class IPV8SocketTest {
 
     @Test
     fun receiveWaitsForSemaphore() {
-        // Run test for 5 seconds and assume that the thread is still blocked
+        // Create the socket
+        var testSocket = IPV8Socket(mockedCommunity)
 
+        // Create a mock Semaphore
+        val mockSemaphore = mockk<Semaphore>()
+        testSocket.readSemaphore = mockSemaphore
+
+
+        every { mockSemaphore.acquire() } just Awaits;
+
+        // Run the test
+         val thread = Thread {
+             testSocket.receive(DatagramPacket(ByteArray(100), 100));
+            }
+        thread.start();
+        Thread.sleep(3000);
+
+        // Verify that the thread is still waiting
+        val threadState = thread.state;
+
+        assertEquals(State.TIMED_WAITING, threadState);
     }
 
 
@@ -75,7 +94,7 @@ class IPV8SocketTest {
         // Create a mock Semaphore
         val mockSemaphore = mockk<Semaphore>()
         every { mockSemaphore.acquire() } throws InterruptedException()
-        var testSocket = IPV8Socket(mockedCommunity)
+        val testSocket = IPV8Socket(mockedCommunity)
         testSocket.readSemaphore = mockSemaphore
 
         // Interrupt the thread and assert that IOException is thrown
@@ -107,12 +126,28 @@ class IPV8SocketTest {
     @Test
     fun receiveReadsFromQueueOncePerSemaphore() {
         // Create the socket
+        val testSocket = IPV8Socket(mockedCommunity);
+        testSocket.statusFunction = this::statusFunction;
 
-        // Populate the message queue
+        // Mock the message queue
+        val mockedQueue = mockk<ConcurrentLinkedQueue<Pair<IPv4Address, UTPPayload>>>();
+        testSocket.messageQueue = mockedQueue;
 
-        // Release the semaphore
+        // Mock the semaphore
+        val mockedSemaphore = mockk<Semaphore>();
+        testSocket.readSemaphore = mockedSemaphore;
+
+        // Configure mocks
+        every { mockedSemaphore.acquire() } just runs;
+        every { mockedQueue.poll() } returns Pair(IPv4Address("1.2.3.4", 5678), UTPPayload(DatagramPacket(ByteArray(60), 60)));
+
+        // Run the function
+        testSocket.receive(DatagramPacket(ByteArray(100), 100));
 
         // Check that the queue was popped only once
+        verify(exactly = 1) { mockedSemaphore.acquire() }
+        verify(exactly = 1) { mockedQueue.poll() }
+
     }
 
     @Test
