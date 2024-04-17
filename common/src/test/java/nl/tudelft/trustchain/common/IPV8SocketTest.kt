@@ -32,7 +32,6 @@ import java.util.concurrent.Semaphore
 class IPV8SocketTest {
     private var mockedCommunity = spyk(DemoCommunity(), recordPrivateCalls = true)
     private val myPeer = mockk<Peer>()
-    private val mockedSocket = mockk<IPV8Socket>()
     private val endpoint = mockk<EndpointAggregator>()
     private val network = mockk<Network>(relaxed = true)
     private val msgIdUTPRawData = 254
