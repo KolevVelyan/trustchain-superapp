@@ -64,10 +64,7 @@ dependencies {
 
     // Testing
     testImplementation "junit:junit:$junit_version"
-    testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutines_version"
     testImplementation "io.mockk:mockk:$mockk_version"
-    testImplementation "app.cash.sqldelight:sqlite-driver:$sqldelight_version"
-    testImplementation "com.goterl:lazysodium-java:5.1.4"
 
     // Transitive dependencies
     implementation "androidx.core:core:$core_version"
@@ -80,9 +77,6 @@ dependencies {
         exclude module: 'lazysodium-java'
     }
     implementation 'com.github.kolevvelyan:utp4j:fdda485266837cac59a754eeb084f69f9fb943c0'
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.8.1'
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.8.1'
-    testImplementation 'io.mockk:mockk-dsl:1.13.9'
 
 }
 
