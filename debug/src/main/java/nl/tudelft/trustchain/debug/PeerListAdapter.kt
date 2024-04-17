@@ -8,7 +8,9 @@ import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import nl.tudelft.ipv8.IPv4Address
 import nl.tudelft.ipv8.Peer
+import nl.tudelft.ipv8.keyvault.Key
 import java.util.Date
 
 /**
@@ -17,6 +19,7 @@ import java.util.Date
 class PeerListAdapter(
     private val context: Context,
     resource: Int,
+    private val blacklistKey: Key, // used to differentiate walkable peers
     peerConnectionList: List<Peer?>,
 ) :
     ArrayAdapter<Peer?>(context, resource, peerConnectionList) {
@@ -41,30 +44,41 @@ class PeerListAdapter(
             holder = convertView.tag as ViewHolder
         }
 
+        val peer: Peer = getItem(position) ?: return convertView
 
+        // Check if the peer is a walkable peer and not yet discovered
+        if (peer.key == blacklistKey) {
+            holder.mPeerId!!.text = "walkable address"
+            holder.mDestinationAddress!!.text = peer.address.toString()
+            // set the status indicator to grey
+            ContextCompat.getDrawable(context, R.drawable.peer_indicator_grey)?.let {
+                holder.mStatusIndicator!!.background = it
+            }
+        } else {
+            // normal peer
+            holder.mPeerId!!.text = getSplitMID(peer.mid)
+            holder.mDestinationAddress!!.text = peer.wanAddress.toString()
 
-        val peer: Peer? = getItem(position)
-        holder.mPeerId!!.text = getSplitMID(peer?.mid!!)
-        holder.mDestinationAddress!!.text = peer.wanAddress.toString()
+    //        val lastRequest = peer.lastRequest
+    //        if (lastRequest != null) {
+    //            if (Date().time - lastRequest.time < 200) {
+    //                animate(holder.mSentIndicator)
+    //            }
+    //        }
+    //
+    //        val lastResponse = peer.lastResponse
+    //        if (lastResponse != null) {
+    //            if (Date().time - lastResponse.time < 200) {
+    //                animate(holder.mReceivedIndicator)
+    //            }
+    //        }
 
-//        val lastRequest = peer.lastRequest
-//        if (lastRequest != null) {
-//            if (Date().time - lastRequest.time < 200) {
-//                animate(holder.mSentIndicator)
-//            }
-//        }
-//
-//        val lastResponse = peer.lastResponse
-//        if (lastResponse != null) {
-//            if (Date().time - lastResponse.time < 200) {
-//                animate(holder.mReceivedIndicator)
-//            }
-//        }
-
-        val statusIndicator = getStatusIndicator(peer.lastResponse, context)
-        if (statusIndicator != null) {
-            holder.mStatusIndicator!!.background = statusIndicator
+            val statusIndicator = getStatusIndicator(peer.lastResponse, context)
+            if (statusIndicator != null) {
+                holder.mStatusIndicator!!.background = statusIndicator
+            }
         }
+
 
         return convertView
     }

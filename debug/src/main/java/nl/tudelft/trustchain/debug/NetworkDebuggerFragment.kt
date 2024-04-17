@@ -13,6 +13,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import nl.tudelft.ipv8.IPv4Address
 import nl.tudelft.ipv8.Peer
+import nl.tudelft.ipv8.keyvault.Key
 import nl.tudelft.trustchain.common.ui.BaseFragment
 import nl.tudelft.trustchain.common.util.viewBinding
 import nl.tudelft.trustchain.debug.databinding.FragmentNetworkDebuggerBinding
@@ -49,8 +50,9 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
     override fun onUTPSendRequest(sender: IPv4Address, dataSize: Int?) {
         // find the peer that sent the request
         val peer = peerList.find { it.address.ip == sender.ip }
+        val myKey = getDemoCommunity().myPeer.key
 
-        // if sender is not in peers then display warnign to user and ignore request
+        // if sender is not in peers then display warning to user and ignore request
         if (peer == null) {
             activity?.runOnUiThread {
                 Toast.makeText(
@@ -60,6 +62,18 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
                 ).show()
             }
             Log.e("UTP", "Received send request from unknown peer ${sender.ip}:${sender.port}")
+            return
+        }
+
+        // if sender is one of the peers that are known but have not been discovered yet, display warning to user and ignore request
+        if (peer.key == myKey) {
+            activity?.runOnUiThread {
+                Toast.makeText(
+                    requireContext(),
+                    "Not allowed to receive data from peers in discovery phase",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
             return
         }
 
@@ -93,15 +107,31 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
 
         // update the peer list based on the peers in the community
         peerList = getDemoCommunity().getPeers()
-        val peerListAdapter = PeerListAdapter(context, R.layout.peer_connection_list_item, peerList)
-        binding.peerConnectionListView.adapter = peerListAdapter
 
+        // add walkable peers to peer list with their IPv4 address and my peer's key
+        val walkablePeers = getDemoCommunity().getWalkableAddresses()
+        val myPeerKey = getDemoCommunity().myPeer.key // use my key to create a peer object for the list
+        for (ipv4address in walkablePeers) {
+                peerList += Peer(myPeerKey, ipv4address)
+        }
+
+        val peerListAdapter = PeerListAdapter(context, R.layout.peer_connection_list_item, myPeerKey, peerList)
+        binding.peerConnectionListView.adapter = peerListAdapter
 
         // handle click on peer (opens UTP send dialog)
         binding.peerConnectionListView.setOnItemClickListener { _, _, position, _ ->
             val peer = peerList[position]
+            val myKey = getDemoCommunity().myPeer.key
 
-            if (peer.address.ip == "0.0.0.0") {
+            if (peer.key == myKey) {
+                activity?.runOnUiThread {
+                    Toast.makeText(
+                        context,
+                        "Not allowed to send data to peers in discovery phase",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } else if (peer.address.ip == "0.0.0.0") {
                 activity?.runOnUiThread {
                     Toast.makeText(
                         context,
