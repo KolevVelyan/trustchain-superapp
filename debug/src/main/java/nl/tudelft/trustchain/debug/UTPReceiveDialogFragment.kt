@@ -29,20 +29,25 @@ class UTPReceiveDialogFragment(private val otherPeer: Peer,
     // the receiver object that receives the data
     private var receiver = UTPReceiver(this@UTPReceiveDialogFragment, community)
 
-    private var updateSpeed: Boolean = true
+    // variables to keep track of the data transfer speed
+    private var updateSpeed: Boolean = true // flag to update the speed when new packets have been sent/received
 
+    // track the time of the initial packet, last sent packet, and last received packet by receiver
     private var initialPacketTime: LocalDateTime = LocalDateTime.now()
     private var lastSentTime: LocalDateTime = LocalDateTime.now()
     private var lastReceivedTime: LocalDateTime = LocalDateTime.now()
 
+    // track the total data sent and received by receiver
     private var totalDataSent: Int = 0
     private var totalDataReceived: Int = 0
 
+    // track the max SEQ number and max ACK number of the sent and received packets
     private var sentSeqNum: Int = 0
     private var sentAckNum: Int = 0
     private var receivedSeqNum: Int = 0
     private var receivedAckNum: Int = 0
 
+    // track the number of sent and received packets by receiver
     private var sentPackets: Int = 0
     private var receivedPackets: Int = 0
 
@@ -71,6 +76,7 @@ class UTPReceiveDialogFragment(private val otherPeer: Peer,
             }
         }
 
+        // handle click of Info button
         binding!!.infoButton.setOnClickListener{
             showInfoDialog()
         }
@@ -121,6 +127,7 @@ class UTPReceiveDialogFragment(private val otherPeer: Peer,
         appendTextToResult("Unexpectedly sending data. SHOULD NOT HAPPEN!")
     }
 
+    // Handle the speed update of the receiver
     override fun receiveSpeedUpdate(isSentPacket: Boolean, packetSize: Int, seqNum: Int, ackNum: Int) {
         updateSpeed = true
 
@@ -224,6 +231,7 @@ class UTPReceiveDialogFragment(private val otherPeer: Peer,
         updateSpeed = false
     }
 
+    // Show the information dialog about the transfer speed and the flags
     private fun showInfoDialog() {
         val dialogBuilder = AlertDialog.Builder(context)
             .setPositiveButton("OK") { dialog, _ ->

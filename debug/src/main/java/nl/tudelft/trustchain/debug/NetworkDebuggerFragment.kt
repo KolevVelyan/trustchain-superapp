@@ -21,8 +21,8 @@ import nl.tudelft.trustchain.common.OnUTPSendRequestListener
 
 class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger), OnUTPSendRequestListener {
     private val binding by viewBinding(FragmentNetworkDebuggerBinding::bind)
-    private var receivingDialog: UTPReceiveDialogFragment? = null
-    private var peerList: List<Peer> = emptyList()
+    private var receivingDialog: UTPReceiveDialogFragment? = null // last dialog used to receive data from a peer
+    private var peerList: List<Peer> = emptyList() // list of peers in the community
 
     override fun onViewCreated(
         view: View,

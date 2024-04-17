@@ -34,28 +34,33 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
     // the sender object that sends the data
     private var sender = UTPSender(this@UTPSendDialogFragment, community)
 
+    // variables to store user input
     private var chosenVote: String = "" // the type of data/vote the user wants to send
     private var availableVotes : Array<String> = emptyArray() // the list of available votes
+    private var dataSize: Int = 1 // the size of the data to be sent
 
-    private var updateSpeed: Boolean = true
-    private var dataSize: Int = 1
+    // variables to keep track of the data transfer speed
+    private var updateSpeed: Boolean = true // flag to update the speed when new packets have been sent/received
 
+    // track the time of the initial packet, last sent packet, and last received packet by sender
     private var initialPacketTime: LocalDateTime = LocalDateTime.now()
     private var lastSentTime: LocalDateTime = LocalDateTime.now()
     private var lastReceivedTime: LocalDateTime = LocalDateTime.now()
 
+    // track the total data sent and received by sender
     private var totalDataSent: Int = 0
     private var totalDataReceived: Int = 0
 
+    // track the max SEQ number and max ACK number of the sent and received packets
     private var sentSeqNum: Int = 0
     private var sentAckNum: Int = 0
     private var receivedSeqNum: Int = 0
     private var receivedAckNum: Int = 0
 
+    // track the number of sent and received packets by sender
     private var sentPackets: Int = 0
     private var receivedPackets: Int = 0
 
-    // This method is called when the dialog is created
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         // inflate the view to get the correct layout
         val dialogView = layoutInflater.inflate(R.layout.fragment_utp_send, null)
@@ -97,6 +102,7 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
             }
         }
 
+        // handle click of Info button
         binding!!.infoButton.setOnClickListener{
             showInfoDialog()
         }
@@ -142,6 +148,7 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
         appendTextToResult("Success! Sent to $destinationAddress")
     }
 
+    // Handle the speed update of the sender
     override fun receiveSpeedUpdate(isSentPacket: Boolean, packetSize: Int, seqNum: Int, ackNum: Int) {
         updateSpeed = true
 
@@ -212,6 +219,7 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
             byteData = readCsvToByteArray(chosenVote)
         }
 
+        // reset the transfer speed variables
         initialPacketTime = LocalDateTime.now()
         lastSentTime = LocalDateTime.now()
         lastReceivedTime = LocalDateTime.now()
@@ -362,6 +370,7 @@ class UTPSendDialogFragment(private val otherPeer: Peer, private val community: 
         updateSpeed = false
     }
 
+    // Show the information dialog about the transfer speed and the flags
     private fun showInfoDialog() {
         val dialogBuilder = AlertDialog.Builder(context)
             .setPositiveButton("OK") { dialog, _ ->

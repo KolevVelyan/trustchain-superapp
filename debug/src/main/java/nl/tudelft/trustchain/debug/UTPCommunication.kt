@@ -17,9 +17,6 @@ import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 
-
-
-
 /**
  * Class that oversees the communication of UTP data between two peers.
 
@@ -51,6 +48,7 @@ class UTPReceiver(
         return isReceiving
     }
 
+    // Method to stop connection prematurely (atomic)
     fun stopConnection() {
         synchronized(this) {
             connectFuture?.unblock() // unblock if no one has connected
@@ -82,7 +80,7 @@ class UTPReceiver(
             // socket is defined by the sender's ip and port
             val socket = InetSocketAddress(InetAddress.getByName(sender.ip), sender.port)
 
-            // get the updates from the custom IPV8 socket
+            // define function that should be called by IPV8 socket to give info about transfer
             this.socket.statusFunction = uTPDataFragment::receiveSpeedUpdate
 
             // instantiate client to receive data on the custom IPV8 socket
@@ -125,6 +123,8 @@ class UTPReceiver(
             channel?.close()
             uTPDataFragment.debugInfo("Channel closed")
 
+            // tell listening fragment that the data has been received
+            // depending on the size of the data the transfer can be successful or not
             if (totalReceived == 0) {
                 uTPDataFragment.newDataReceived(false, byteArrayOf(), sender, "No data sent")
             } else if (totalReceived != dataSize) {
@@ -158,6 +158,7 @@ class UTPSender(
         return isSending
     }
 
+    // Method to stop connection prematurely (atomic)
     fun stopConnection() {
         synchronized (this) {
             acceptFuture?.unblock() // unblock if no one has connected
@@ -192,6 +193,7 @@ class UTPSender(
         val packet = community.serializePacket(DemoCommunity.MessageId.UTP_SEND_REQUEST, payload, sign = false)
         community.endpoint.send(peerToSend.address, packet)
 
+        // define function that should be called by IPV8 socket to give info about transfer
         this.socket.statusFunction = uTPDataFragment::receiveSpeedUpdate
 
         try {
@@ -225,7 +227,8 @@ class UTPSender(
                 channel?.close()
                 uTPDataFragment.debugInfo("Channel closed")
 
-                // tell listening fragment that the data has been sent successfully
+                // tell listening fragment that the data has been sent
+                // depending on the size of the data the transfer can be successful or not
                 if (totalSent == 0) {
                     uTPDataFragment.newDataSent(false, "","No data sent")
                 } else if (totalSent != dataToSend.size) {
@@ -267,6 +270,6 @@ interface UTPDataFragment {
     // Or if success is false then the data could not be sent and the {msg} gives the reason
     fun newDataSent(success: Boolean, destinationAddress: String = "", msg: String = "")
 
-
+    // Inform the fragment about every packet sent or received through IPV8 socket
     fun receiveSpeedUpdate(isSentPacket: Boolean, packetSize: Int, seqNum: Int, ackNum: Int)
 }
