@@ -61,11 +61,16 @@ class IPV8SocketTest {
         print("" + a + b + c + d);
     }
 
-    @Test
-    fun receiveWaitsForSemaphore() {
-        // Run test for 5 seconds and assume that the thread is still blocked
-
-    }
+//    @Test
+//    fun receiveWaitsForSemaphore() {
+//        val testSocket = IPV8Socket(mockedCommunity);
+//
+//        //mock the semaphore
+//        val mockSemaphore = mockk<Semaphore>()
+//        every { mockSemaphore.acquire() } just runs
+//
+//
+//    }
 
 
     @Test
@@ -104,16 +109,16 @@ class IPV8SocketTest {
         }
     }
 
-    @Test
-    fun receiveReadsFromQueueOncePerSemaphore() {
-        // Create the socket
-
-        // Populate the message queue
-
-        // Release the semaphore
-
-        // Check that the queue was popped only once
-    }
+//    @Test
+//    fun receiveReadsFromQueueOncePerSemaphore() {
+//        // Create the socket
+//
+//        // Populate the message queue
+//
+//        // Release the semaphore
+//
+//        // Check that the queue was popped only once
+//    }
 
     @Test
     fun sendCorrect() {
