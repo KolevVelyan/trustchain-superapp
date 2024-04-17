@@ -304,4 +304,56 @@ class UTPReceiverTest {
 
         assertEquals("Invalid data size received from sender. Stopping receiver.", errorMsg.captured)
     }
+
+    @Test
+    fun receiveDataFailedRead() {
+        // we test for socket.read() functionality indirectly on the IPV8 testsuite.
+        // continue by mocking everything else and verify the correct amount of calls
+
+        mockkConstructor(UtpSocketChannelImpl::class)
+        var mockConnFut = mockk<UtpConnectFuture>()
+        var mockReadFut = mockk<UtpReadFutureImpl>()
+
+        // mock connect method
+        every { anyConstructed<UtpSocketChannelImpl>().connect(any()) } returns mockConnFut
+        every { anyConstructed<UtpSocketChannelImpl>().read(any()) } returns mockReadFut
+        // await and release immediately
+        every { anyConstructed<UtpSocketChannelImpl>().close() } returns mockk()
+
+        var errorMsg = slot<String>();
+        every { mockedUTPDataFragment.newDataReceived(any(), any(), any(), capture(errorMsg)) } just runs
+
+        // mock block
+        every { mockConnFut.block() } just runs
+        // mock unblock for connect future
+        every { mockConnFut.unblock() } just runs
+
+        // mock utpreadfuture block
+        every { mockReadFut.block() } throws Exception("Failed to read")
+
+        // create a utp receiver with the mocked objects
+        val utpReceiver = UTPReceiver(mockedUTPDataFragment, mockedCommunity)
+        // create a thread to run the receiveData method
+        utpReceiver.receiveData(IPv4Address("1.2.3.4", 1234), 10)
+
+        assertEquals("Error: Failed to read", errorMsg.captured)
+    }
+
+    @Test
+    fun receiveDataConnectFutureNull() {
+        // we test for socket.read() functionality indirectly on the IPV8 testsuite.
+        // continue by mocking everything else and verify the correct amount of calls
+
+        mockkConstructor(UtpSocketChannelImpl::class)
+        var mockConnFut = mockk<UtpConnectFuture>()
+        var mockReadFut = mockk<UtpReadFutureImpl>()
+
+        // mock connect method
+        every { anyConstructed<UtpSocketChannelImpl>().connect(any()) } returns null
+
+        // create a utp receiver with the mocked objects
+        val utpReceiver = UTPReceiver(mockedUTPDataFragment, mockedCommunity)
+        // create a thread to run the receiveData method
+        assertEquals(Unit, utpReceiver.receiveData(IPv4Address("1.2.3.4", 1234), 10))
+    }
 }
