@@ -64,6 +64,7 @@ dependencies {
 
     // Testing
     testImplementation "junit:junit:$junit_version"
+    testImplementation "io.mockk:mockk:$mockk_version"
 
     // Transitive dependencies
     implementation "androidx.core:core:$core_version"
