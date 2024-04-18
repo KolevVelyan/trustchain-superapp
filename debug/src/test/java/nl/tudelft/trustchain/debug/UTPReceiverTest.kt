@@ -21,8 +21,11 @@ import nl.tudelft.ipv8.peerdiscovery.Network
 import nl.tudelft.trustchain.common.DemoCommunity
 import nl.tudelft.trustchain.common.IPV8Socket
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Before
 import org.junit.Test
+import java.io.IOException
+import java.nio.ByteBuffer
 import kotlin.concurrent.thread
 
 class UTPReceiverTest {
@@ -152,11 +155,14 @@ class UTPReceiverTest {
 
         // mock connect method
         every { anyConstructed<UtpSocketChannelImpl>().connect(any()) } returns mockConnFut
-        every { anyConstructed<UtpSocketChannelImpl>().read(any()) } returns mockReadFut
+        every { anyConstructed<UtpSocketChannelImpl>().read(any()) } answers  {
+            (it.invocation.args[0] as ByteBuffer).put(ByteArray(10))
+            mockReadFut
+        }
         // await and release immediately
         every { anyConstructed<UtpSocketChannelImpl>().close() } returns mockk()
-
-        every { mockedUTPDataFragment.newDataReceived(any(), any(), any(), any()) } just runs
+        var msg = slot<String>()
+        every { mockedUTPDataFragment.newDataReceived(any(), any(), any(), capture(msg)) } just runs
 
         // mock block
         every { mockConnFut.block() } just runs
@@ -178,6 +184,9 @@ class UTPReceiverTest {
         verify(exactly = 1) { mockConnFut.block() }
         verify(exactly = 1) { mockReadFut.block() }
         verify(exactly = 1) { mockedUTPDataFragment.newDataReceived(any(), any(), any(), any()) }
+        assertNotEquals("Received 9 bytes instead of 10", msg.captured)
+        assertNotEquals("No data sent", msg.captured)
+
     }
 
     @Test
@@ -356,4 +365,106 @@ class UTPReceiverTest {
         // create a thread to run the receiveData method
         assertEquals(Unit, utpReceiver.receiveData(IPv4Address("1.2.3.4", 1234), 10))
     }
+
+
+    @Test
+    fun receiveDataFailedBind() {
+        // we test for socket.read() functionality indirectly on the IPV8 testsuite.
+        // continue by mocking everything else and verify the correct amount of calls
+
+        mockkConstructor(UtpSocketChannelImpl::class)
+        var mockConnFut = mockk<UtpConnectFuture>()
+        var mockReadFut = mockk<UtpReadFutureImpl>()
+
+        // mock connect method
+        every { anyConstructed<UtpSocketChannelImpl>().connect(any()) } returns null
+        every { anyConstructed<UtpSocketChannelImpl>().dgSocket = any() } throws IOException("Failed to bind")
+
+        var errorMsg = slot<String>();
+        every { mockedUTPDataFragment.newDataReceived(any(), any(), any(), capture(errorMsg)) } just runs
+
+        // create a utp receiver with the mocked objects
+        val utpReceiver = UTPReceiver(mockedUTPDataFragment, mockedCommunity)
+        // create a thread to run the receiveData method
+        assertEquals(Unit, utpReceiver.receiveData(IPv4Address("1.2.3.4", 1234), 10))
+
+        assertEquals("Error: Could not open UtpSocketChannel: Failed to bind", errorMsg.captured)
+    }
+
+    @Test
+    fun receiveDataZeroReceived() {
+    // we test for socket.read() functionality indirectly on the IPV8 testsuite.
+        // continue by mocking everything else and verify the correct amount of calls
+
+        mockkConstructor(UtpSocketChannelImpl::class)
+        mockkConstructor(ByteBuffer::class)
+        var mockConnFut = mockk<UtpConnectFuture>()
+        var mockReadFut = mockk<UtpReadFutureImpl>()
+
+        // mock connect method
+        every { anyConstructed<UtpSocketChannelImpl>().connect(any()) } returns mockConnFut
+        every { anyConstructed<UtpSocketChannelImpl>().read(any()) } returns mockReadFut
+        // await and release immediately
+        every { anyConstructed<UtpSocketChannelImpl>().close() } returns mockk()
+        every { anyConstructed<ByteBuffer>().position() } returns 0
+
+        var errorMsg = slot<String>();
+        every { mockedUTPDataFragment.newDataReceived(any(), any(), any(), capture(errorMsg)) } just runs
+
+        // mock block
+        every { mockConnFut.block() } just runs
+        // mock unblock for connect future
+        every { mockConnFut.unblock() } just runs
+
+        // mock utpreadfuture block
+        every { mockReadFut.block() } just runs
+
+        // create a utp receiver with the mocked objects
+        val utpReceiver = UTPReceiver(mockedUTPDataFragment, mockedCommunity)
+        // create a thread to run the receiveData method
+        utpReceiver.receiveData(IPv4Address("1.2.3.4", 1234), 10)
+
+        assertEquals("No data sent", errorMsg.captured)
+    }
+
+    @Test
+    fun receiveDataDiffDataSize() {
+        // we test for socket.read() functionality indirectly on the IPV8 testsuite.
+        // continue by mocking everything else and verify the correct amount of calls
+
+        // mock the line "val buffer = ByteBuffer.allocate(dataSize)"
+
+        mockkConstructor(UtpSocketChannelImpl::class)
+        var mockConnFut = mockk<UtpConnectFuture>()
+        var mockReadFut = mockk<UtpReadFutureImpl>()
+
+        // mock connect method
+        every { anyConstructed<UtpSocketChannelImpl>().connect(any()) } returns mockConnFut
+        every { anyConstructed<UtpSocketChannelImpl>().read(any<ByteBuffer>()) } answers {
+            (it.invocation.args[0] as ByteBuffer).put(ByteArray(9))
+            mockReadFut
+        }
+
+        // await and release immediately
+
+        var errorMsg = slot<String>();
+        every { mockedUTPDataFragment.newDataReceived(any(), any(), any(), capture(errorMsg)) } just runs
+
+        // mock block
+        every { mockConnFut.block() } just runs
+        // mock unblock for connect future
+        every { mockConnFut.unblock() } just runs
+
+        // mock utpreadfuture block
+        every { mockReadFut.block() } just runs
+
+        // create a utp receiver with the mocked objects
+        val utpReceiver = UTPReceiver(mockedUTPDataFragment, mockedCommunity)
+        // create a thread to run the receiveData method
+        utpReceiver.receiveData(IPv4Address("1.2.3.4", 1234), 10)
+
+        assertEquals("Received 9 bytes instead of 10", errorMsg.captured)
+    }
+
+
 }
