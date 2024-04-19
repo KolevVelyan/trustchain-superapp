@@ -77,7 +77,11 @@ Our code contribution has been placed in the _debug_ folder. There one can find 
 
 ## Limitations
 
-Currently, our feature does not support 5G, thus there may be unexpected behavior if one tries to send or receive data using it. Another limitation of our feature is that changing IP address during the process of sending/receiving files causes the process to fail as we currently use only the IP address of the peer to know where we need to send the data. Therefore, upon a change in the IP address of the receiver, the sender will continue trying to send data to the receiver’s initial address, before timing out and canceling the operation. A limitation, which is not vital but nonetheless important to mention, is the fact that due to the integration with IPv8, we now have to allocate enough space for IPv8’s header which has a size of 31 bytes. This reduces the actual packet size, which we can use to send file data, compared to only using UTP. This means that the speed of file transfers will be affected.
+Currently, our feature does not support 5G, thus there may be unexpected behavior if one tries to send or receive data using it. Another limitation of our feature is that changing IP address during the process of sending/receiving files causes the process to fail as we currently use only the IP address of the peer to know where we need to send the data. Therefore, upon a change in the IP address of the receiver, the sender will continue trying to send data to the receiver’s initial address, before timing out and canceling the operation.
+
+The maximum data that can currently be sent is 65535 packets using UTP as that is a limit of UTP (this is around 113MB). So if you try to send more than that only the first 113MB will be sent and transfer will count as successful. This is a limitation of UTP.
+
+A limitation, which is not vital but nonetheless important to mention, is the fact that due to the integration with IPv8, we now have to allocate enough space for IPv8’s header which has a size of 31 bytes. This reduces the actual packet size, which we can use to send file data, compared to only using UTP. This means that the speed of file transfers will be affected.
 
 The actual speed we have documented with different file sizes and different connection types are as follows where the format is [max packet length: 3 examples of sending speed in KB/s]:
 
