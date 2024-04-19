@@ -2,7 +2,7 @@
 
 ## Walkthrough of Network Debugger
 
-Our implementation has the following functionalities:
+Our implementation an be found in a [fork of the trustchain-superapp](https://github.com/KolevVelyan/trustchain-superapp) and has the following functionalities:
 
 ### Network Debugger
 
@@ -16,7 +16,7 @@ Users can easily monitor peer activity. Peers in the walkable list (i.e. peers w
 It is important to note that peers are automatically removed from the list when they become inactive and are no longer part of the walkable list. Moreover, a user is prevented from sending data to grey peers as we have no direct communication with them implying a lack of puncture.
 
 <div style="text-align:center">
-<img src="../../../../../res/images/NetDeb.PNG" alt="Image of Network Debugger" width="280" height="480">
+<img src="../../../../../res/images/NetDeb.PNG" alt="Image of Network Debugger" width="280">
 </div>
 
 ### Sending data
@@ -24,7 +24,7 @@ It is important to note that peers are automatically removed from the list when 
 Upon clicking on a peer row the user is presented a panel, where using a drop-down menu, the user can select a file they would like to transfer or simply send a selected amount of predetermined data. In this panel, users can also track important information about the data transfer process like speed and progress.
 
 <div style="text-align:center">
-<img src="../../../../../res/images/Sending.PNG" alt="Image of Sending Panel" width="280" height="480">
+<img src="../../../../../res/images/Sending.PNG" alt="Image of Sending Panel" height="480">
 </div>
 
 ### Receiving data
@@ -32,7 +32,7 @@ Upon clicking on a peer row the user is presented a panel, where using a drop-do
 For a user who has opened the Network Debugger, if a sender starts sending data to them, then a popup panel shows, which similarly to the sender panel indicates progress and other useful details about the data transfer.
 
 <div style="text-align:center">
-<img src="../../../../../res/images/Receiving.PNG" alt="Image of Receiving Panel" width="280" height="480">
+<img src="../../../../../res/images/Receiving.PNG" alt="Image of Receiving Panel" height="480">
 </div>
 
 ## Information about UTP
@@ -41,7 +41,7 @@ To achieve seamless transfers of larger information between peers we have utiliz
 
 The main idea of the integration procedure was to alter the socket that UTP uses. By design, the protocol relies on Datagram sockets, which are Java’s built-in sockets that handle UDP packet transfers. To be able to use the same Datagram socket as IPv8, which is successfully punctured, we would have to package UTP messages in IPv8 and not UDP, otherwise, a different socket has to be bound, preventing us from a coherent integration with the already existing network abstraction in the superapp. To tackle this, we created an extended Datagram socket, which overwrites some functionalities so that they utilize the IPv8 protocol. This “socket” is added as a listener to a community, which allows it to also listen for messages and handle messages with the appropriate IPv8 header ID (currently set to 254).
 
-Let’s go through an example usage of UTP in the context of our application. The sender initiates the communication by sending an IPv8 package containing the total size of their file. Sending a byte array using UTP is done by creating a _UtpServerSocketChannel_ to which we provide our custom socket and we wait for the receiver to connect. After receiving the IPv8 package, containing the size of the file, the receiver establishes a _UtpSocketChannel_ and connects to the sender’s “server”. After the connection is established, the sender starts sending the file data (split into packets) to the receiver and tracks which packets need to be re-send using acknowledgement packets which the receiver sends back. After all packets have been received both parties close their UTP channels.
+Let’s go through an example usage of UTP in the context of our application. The sender initiates the communication by sending an IPv8 packet containing the total size of their file. Sending a byte array using UTP is done by creating a _UtpServerSocketChannel_ to which we provide our custom socket and we wait for the receiver to connect. After receiving the IPv8 packet, containing the size of the file, the receiver establishes a _UtpSocketChannel_ and connects to the sender’s “server”. After the connection is established, the sender starts sending the file data (split into packets) to the receiver and tracks which packets need to be re-send using acknowledgement packets which the receiver sends back. After all packets have been received both parties close their UTP channels.
 
 ## Design Choices
 
@@ -49,7 +49,7 @@ All peers in the community are displayed in the list. We chose to continuously p
 
 WAN address and Peer ID are used to distinguish users and more information as LAN address and your connection type are also available for preview.
 
-We use our own fork (https://github.com/KolevVelyan/trustchain-superapp ) of the utp4j repository (https://github.com/Tribler/utp4j ) as we needed to make our own changes on the UTP library:
+We use [our own fork](https://github.com/KolevVelyan/utp4j) of the [utp4j repository](https://github.com/Tribler/utp4j) as we needed to make our own changes on the UTP library:
 
 - Sequence number changed from random to deterministic
 - We send the correct size of the data to be sent through the IPv8 protocol and change the buffer size accordingly
