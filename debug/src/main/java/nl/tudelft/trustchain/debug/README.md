@@ -2,7 +2,11 @@
 
 ## Walkthrough of Network Debugger
 
-Our implementation an be found in a [fork of the trustchain-superapp](https://github.com/KolevVelyan/trustchain-superapp) and has the following functionalities:
+Our implementation an be found in a [fork of the trustchain-superapp](https://github.com/KolevVelyan/trustchain-superapp) and has several functionalities. 
+
+
+## Gif (2x speed) showing basic functions:
+<img src="../../../../../res/images/network-debugger.gif" width="250" />
 
 ### Network Debugger
 
