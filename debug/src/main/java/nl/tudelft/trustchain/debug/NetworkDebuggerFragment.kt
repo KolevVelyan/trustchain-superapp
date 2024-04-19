@@ -112,7 +112,12 @@ class NetworkDebuggerFragment : BaseFragment(R.layout.fragment_network_debugger)
         val walkablePeers = getDemoCommunity().getWalkableAddresses()
         val myPeerKey = getDemoCommunity().myPeer.key // use my key to create a peer object for the list
         for (ipv4address in walkablePeers) {
-                peerList += Peer(myPeerKey, ipv4address)
+            // only add peer if not in list already
+            if (peerList.find { it.address.ip == ipv4address.ip } != null) {
+                continue
+            }
+
+            peerList += Peer(myPeerKey, ipv4address)
         }
 
         val peerListAdapter = PeerListAdapter(context, R.layout.peer_connection_list_item, myPeerKey, peerList)
