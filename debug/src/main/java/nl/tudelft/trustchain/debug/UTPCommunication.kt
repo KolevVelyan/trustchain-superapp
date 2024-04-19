@@ -173,8 +173,8 @@ class UTPSender(
 ) : UTPCommunication() {
     private var isSending: Boolean = false
     private var socket: IPV8Socket = IPV8Socket(community)
-    private lateinit var server: UtpServerSocketChannel
-    private lateinit var channel: UtpSocketChannel
+    private var server: UtpServerSocketChannel? = null
+    private var channel: UtpSocketChannel? = null
     private var acceptFuture: UtpAcceptFuture? = null
 
     constructor(
@@ -201,8 +201,8 @@ class UTPSender(
         synchronized(this) {
             acceptFuture?.unblock() // unblock if no one has connected
             acceptFuture = null // reset future
-            channel.close() // close channel if connection is established
-            server.close() // close the server
+            channel?.close() // close channel if connection is established
+            server?.close() // close the server
         }
     }
 
@@ -240,11 +240,11 @@ class UTPSender(
         try {
             // use the custom IPV8 socket to send the data
             server = UtpServerSocketChannel.open()
-            server.bind(socket)
+            server?.bind(socket)
 
             try {
                 // wait until someone connects to socket and get new channel
-                acceptFuture = server.accept()
+                acceptFuture = server!!.accept()
                 uTPDataFragment.debugInfo("Waiting for receiver to connect...")
                 acceptFuture?.block() // block until connection is established
 
@@ -259,13 +259,13 @@ class UTPSender(
                 // send data on newly established channel (with client/receiver)
                 val out = ByteBuffer.allocate(dataToSend.size)
                 out.put(dataToSend)
-                val fut = channel.write(out)
+                val fut = channel!!.write(out)
                 fut.block() // block until all data is sent
 
                 val totalSent = out.position() // in bytes
                 uTPDataFragment.debugInfo("Sent $totalSent/${dataToSend.size} bytes of data")
 
-                channel.close()
+                channel?.close()
                 uTPDataFragment.debugInfo("Channel closed")
 
                 // tell listening fragment that the data has been sent
@@ -284,7 +284,7 @@ class UTPSender(
                 e.printStackTrace(System.err)
                 uTPDataFragment.newDataSent(false, "", "Error: ${e.message}")
             } finally {
-                server.close()
+                server?.close()
             }
         } catch (e: java.lang.Exception) {
             e.printStackTrace(System.err)
